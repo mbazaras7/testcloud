@@ -5,12 +5,13 @@ from .views import *
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 router = routers.DefaultRouter()
-router.register('transactions', TransactionViewSet, basename='transactions')
+router.register('users', UserViewSet, basename='users')
+#router.register('transactions', TransactionViewSet, basename='transactions')
 router.register('incomes', IncomeViewSet, basename='incomes')
 router.register('expenses', ExpenseViewSet, basename='expenses')
-router.register('receipts', ReceiptViewSet, basename='receipts')
+#router.register('receipts', ReceiptViewSet, basename='receipts')
 router.register('budgets', BudgetViewSet, basename='budgets')
-router.register('notifications', NotificationViewSet, basename='notifications')
+#router.register('notifications', NotificationViewSet, basename='notifications')
 
 
 urlpatterns = [

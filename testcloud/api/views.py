@@ -1,29 +1,71 @@
-
-# Create your views here.
 from django.http import HttpResponse
 from django.shortcuts import render
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Transaction, Income, Expense, Receipt, Budget, Notification
+from .models import Income, Expense, Budget
 from .serializers import (
-    TransactionSerializer,
+    #TransactionSerializer,
     IncomeSerializer,
     ExpenseSerializer,
-    ReceiptSerializer,
+    #ReceiptSerializer,
     BudgetSerializer,
-    NotificationSerializer,
+    #NotificationSerializer,
+    UserSerializer,
+    UserCreateSerializer
 )
 from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
+from django.contrib.auth import get_user_model
 
 
-# Create your views here.
+User = get_user_model()
 
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    A ViewSet for retrieving and creating users.
+    """
+    queryset = User.objects.all()
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserCreateSerializer
+        return UserSerializer
+
+    def get_permissions(self):
+        if self.action == 'create':
+            self.permission_classes = [AllowAny]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        """
+        Save the user instance.
+        """
+        serializer.save()
+        
+class UserScopedViewSet(viewsets.ModelViewSet):
+    """
+    A base ViewSet to restrict queryset to the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Limit queryset to objects belonging to the authenticated user.
+        """
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        """
+        Automatically associate the authenticated user with the created object.
+        """
+        serializer.save(user=self.request.user)
 
 # Transaction ViewSet
+'''
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     queryset = Transaction.objects.all()
@@ -36,33 +78,26 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
+'''
 
 # Income ViewSet
-class IncomeViewSet(viewsets.ModelViewSet):
+class IncomeViewSet(UserScopedViewSet):
     serializer_class = IncomeSerializer
     queryset = Income.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['transaction', 'transaction__category']
-
-    def get_queryset(self):
-        return Income.objects.filter(transaction__user=self.request.user)
+    filterset_fields = ['category', 'date', 'source']
 
 
 # Expense ViewSet
-class ExpenseViewSet(viewsets.ModelViewSet):
+class ExpenseViewSet(UserScopedViewSet):
     serializer_class = ExpenseSerializer
     queryset = Expense.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['transaction', 'transaction__category', 'vendor']
-
-    def get_queryset(self):
-        return Expense.objects.filter(transaction__user=self.request.user)
+    filterset_fields = ['category', 'date', 'vendor', 'payment_method']
 
 
 # Receipt ViewSet
+'''
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
     queryset = Receipt.objects.all()
@@ -72,24 +107,23 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Receipt.objects.filter(transaction__user=self.request.user)
-
+'''
 
 # Budget ViewSet
-class BudgetViewSet(viewsets.ModelViewSet):
+class BudgetViewSet(UserScopedViewSet):
     serializer_class = BudgetSerializer
     queryset = Budget.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['user', 'category']
-
-    def get_queryset(self):
-        return Budget.objects.filter(user=self.request.user)
+    filterset_fields = ['category']
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
+        """
+        Ensure that `current_spending` is initialized to zero upon creation.
+        """
+        serializer.save(user=self.request.user, current_spending=0)
 
 # Notification ViewSet
+'''
 class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer
     queryset = Notification.objects.all()
@@ -104,3 +138,4 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notification = serializer.save()
         notification.is_read = True
         notification.save()
+'''

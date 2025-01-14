@@ -39,43 +39,47 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     user_id = models.AutoField(primary_key=True)
-    email = models.EmailField('Email', unique=True)
+    email = models.EmailField('Email Address', unique=True, db_index=True)
+    full_name = models.CharField(max_length=150, blank=True)
+    date_of_birth = models.DateField(blank=True, null=True)
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['full_name','date_of_birth']
     objects = UserManager()
     
+    def __str__(self):
+        return self.email
+    
 class Transaction(models.Model):
-    TRANSACTION_TYPES = [
-        ('income', 'Income'),
-        ('expense', 'Expense'),
-    ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="transactions")
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    category = models.CharField(max_length=50)
-    date = models.DateField()
-    type = models.CharField(max_length=7, choices=TRANSACTION_TYPES)
-    source = models.CharField(max_length=20, default="manual")  # 'manual' or 'receipt'
-
-    def __str__(self):
-        return f"{self.type.capitalize()} of {self.amount} by {self.user}"
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="%(class)ss", verbose_name=_("User"))
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("Amount"), help_text=_("Enter the transaction amount."))
+    category = models.CharField(max_length=50,verbose_name=_("Category"),help_text=_("Specify the category of the transaction")) # going to need to add list of categories
+    date = models.DateField(verbose_name=_("Transaction Date"),help_text=_("The date of the transaction."))
+    created_at = models.DateTimeField(auto_now_add=True,verbose_name=_("Created At"))
+    updated_at = models.DateTimeField(auto_now=True,verbose_name=_("Updated At"))
     
-class Income(models.Model):
-    transaction = models.OneToOneField(Transaction, on_delete=models.CASCADE, related_name="income_detail")
-    source = models.CharField(max_length=100, blank=True, null=True)
+    class Meta:
+        abstract = True
+        ordering = ["-date", "-created_at"]
 
     def __str__(self):
-        return f"Income: {self.transaction.amount}"
-
-
-class Expense(models.Model):
-    transaction = models.OneToOneField(Transaction, on_delete=models.CASCADE, related_name="expense_detail")
-    vendor = models.CharField(max_length=100, blank=True, null=True)
-    payment_method = models.CharField(max_length=50, blank=True, null=True)  # e.g., Credit Card, Cash
-
-    def __str__(self):
-        return f"Expense: {self.transaction.amount}"
+        return f"{self.type.capitalize()} of {self.amount} - {self.category}"
     
+class Income(Transaction):
+    source = models.CharField(max_length=100,verbose_name=_("Income Source"),help_text=_("The source of the income, e.g., salary, investment, etc."))
+    
+    class Meta:
+        verbose_name = _("Income")
+        verbose_name_plural = _("Incomes")
+
+class Expense(Transaction):
+    vendor = models.CharField(max_length=100,blank=True,null=True,verbose_name=_("Vendor"),help_text=_("The vendor or merchant associated with the expense."))
+    payment_method = models.CharField(max_length=50,blank=True,null=True,verbose_name=_("Payment Method"),help_text=_("Payment method used for the expense, e.g., credit card, cash."))
+    class Meta:
+        verbose_name = _("Expense")
+        verbose_name_plural = _("Expenses")
+  
+'''  
 class Receipt(models.Model):
     transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name="receipt")
     image_url = models.URLField(max_length=500)  # Store uploaded receipt image URLs
@@ -84,7 +88,7 @@ class Receipt(models.Model):
 
     def __str__(self):
         return f"Receipt for Transaction ID: {self.transaction.id}"
-
+'''
 
 class Budget(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
@@ -92,10 +96,11 @@ class Budget(models.Model):
     limit_amount = models.DecimalField(max_digits=10, decimal_places=2)
     current_spending = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
-    def __str__(self):
-        return f"Budget for {self.category}: {self.limit_amount}"
+    class Meta:
+        verbose_name = _("Budget")
+        verbose_name_plural = _("Budgets")
 
-
+'''
 class Notification(models.Model):
     NOTIFICATION_TYPES = [
         ('anomaly', 'Anomaly Alert'),
@@ -111,3 +116,4 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.type.capitalize()}"
+'''
