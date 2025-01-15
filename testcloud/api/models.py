@@ -64,7 +64,7 @@ class Transaction(models.Model):
         ordering = ["-date", "-created_at"]
 
     def __str__(self):
-        return f"{self.type.capitalize()} of {self.amount} - {self.category}"
+        return f"{self.amount} - {self.category}"
     
 class Income(Transaction):
     source = models.CharField(max_length=100,verbose_name=_("Income Source"),help_text=_("The source of the income, e.g., salary, investment, etc."))
