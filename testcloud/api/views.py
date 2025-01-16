@@ -20,7 +20,7 @@ from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, AllowAny
 
 
 User = get_user_model()
@@ -28,7 +28,7 @@ User = get_user_model()
 
 class AllowDummyToken(BasePermission):
     def has_permission(self, request, view):
-        return request.headers.get('Authorization') == f"Bearer {settings.DUMMY_AUTH_TOKEN}"
+        return request.headers.get('Authorization') == f"Bearer test-token" #delete later in development
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -89,7 +89,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
 # Income ViewSet
 class IncomeViewSet(UserScopedViewSet):
-    permission_classes = [AllowDummyToken]
+    permission_classes = [AllowAny] # delete later in development 
     serializer_class = IncomeSerializer
     queryset = Income.objects.all()
     filter_backends = (filters.DjangoFilterBackend,)
