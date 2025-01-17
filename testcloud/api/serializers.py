@@ -36,25 +36,32 @@ class TransactionSerializer(serializers.ModelSerializer):
 class IncomeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Income
-        fields = ['id', 'user', 'amount', 'category', 'date', 'source', 'created_at', 'updated_at']
-        read_only_fields = ['user', 'created_at', 'updated_at']
+        #fields = ['id', 'user', 'amount', 'category', 'date', 'source', 'created_at', 'updated_at']
+        fields = ['id', 'amount', 'category', 'date', 'source', 'created_at', 'updated_at']
 
+        #read_only_fields = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+'''
     def create(self, validated_data):
         user = self.context['request'].user  # Automatically associate the income with the current user
         return Income.objects.create(user=user, **validated_data)
-
+'''
 
 # Expense Serializer
 class ExpenseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expense
-        fields = ['id', 'user', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
-        read_only_fields = ['user', 'created_at', 'updated_at']
+        #fields = ['id', 'user', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
+        fields = ['id', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
+        #read_only_fields = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
+'''
     def create(self, validated_data):
         user = self.context['request'].user  # Automatically associate the expense with the current user
         return Expense.objects.create(user=user, **validated_data)
-
+'''
 
 # Receipt Serializer
 '''

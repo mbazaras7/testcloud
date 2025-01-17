@@ -25,10 +25,11 @@ from rest_framework.permissions import BasePermission, AllowAny
 
 User = get_user_model()
 
-
+'''
 class AllowDummyToken(BasePermission):
     def has_permission(self, request, view):
         return request.headers.get('Authorization') == f"Bearer test-token" #delete later in development
+'''
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -52,12 +53,12 @@ class UserViewSet(viewsets.ModelViewSet):
         Save the user instance.
         """
         serializer.save()
-        
+
 class UserScopedViewSet(viewsets.ModelViewSet):
     """
     A base ViewSet to restrict queryset to the authenticated user.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         """
@@ -88,20 +89,32 @@ class TransactionViewSet(viewsets.ModelViewSet):
 '''
 
 # Income ViewSet
-class IncomeViewSet(UserScopedViewSet):
+#class IncomeViewSet(UserScopedViewSet):
+class IncomeViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny] # delete later in development 
     serializer_class = IncomeSerializer
     queryset = Income.objects.all()
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_fields = ['category', 'date', 'source']
+    
+    def perform_create(self, serializer):
+
+        #serializer.save(user=self.request.user)
+        serializer.save()
 
 
 # Expense ViewSet
-class ExpenseViewSet(UserScopedViewSet):
+#class ExpenseViewSet(UserScopedViewSet):c
+class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     queryset = Expense.objects.all()
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_fields = ['category', 'date', 'vendor', 'payment_method']
+    
+    def perform_create(self, serializer):
+
+        #serializer.save(user=self.request.user)
+        serializer.save()
 
 
 # Receipt ViewSet
