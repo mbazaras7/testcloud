@@ -75,6 +75,10 @@ class ReceiptSerializer(serializers.ModelSerializer):
         receipt = Receipt.objects.create(transaction=transaction, **validated_data)
         return receipt
 '''
+class ReceiptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Receipt
+        fields = ['id', 'image_url', 'merchant', 'total_amount', 'uploaded_at']
 
 
 # Budget Serializer

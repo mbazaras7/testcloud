@@ -81,16 +81,14 @@ class Expense(Transaction):
         verbose_name = _("Expense")
         verbose_name_plural = _("Expenses")
   
-'''  
-class Receipt(models.Model):
-    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name="receipt")
-    image_url = models.URLField(max_length=500)  # Store uploaded receipt image URLs
-    raw_data = models.TextField(blank=True, null=True)  # Store OCR-processed raw text data
-    parsed_data = models.JSONField(blank=True, null=True)  # Parsed key-value pairs (e.g., total, vendor)
 
-    def __str__(self):
-        return f"Receipt for Transaction ID: {self.transaction.id}"
-'''
+class Receipt(models.Model):
+    image_url = models.URLField(max_length=500)  # Store uploaded receipt image URLs
+    merchant = models.CharField(max_length=100,verbose_name=_("Merchant"))
+    total_amount = models.CharField(max_length=100, verbose_name=_("Total"))
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+
 
 class Budget(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")

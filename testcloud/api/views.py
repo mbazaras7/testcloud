@@ -1,3 +1,6 @@
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentRequest
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework import viewsets, filters, status
@@ -5,12 +8,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Income, Expense, Budget
+from .models import Income, Expense, Budget, Receipt
 from .serializers import (
     #TransactionSerializer,
     IncomeSerializer,
     ExpenseSerializer,
-    #ReceiptSerializer,
+    ReceiptSerializer,
     BudgetSerializer,
     #NotificationSerializer,
     UserSerializer,
@@ -21,6 +24,7 @@ from django_filters import rest_framework as filters
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from rest_framework.permissions import BasePermission, AllowAny
+import os
 
 
 User = get_user_model()
@@ -160,3 +164,39 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notification.is_read = True
         notification.save()
 '''
+def _format_price(price_dict):
+    if price_dict is None:
+        return "N/A"
+    return "".join([f"{p}" for p in price_dict.values()])
+
+class ProcessReceiptView(APIView):
+    def post(self, request, *args, **kwargs):
+        receiptUrl = request.data.get('image_url')
+        if not receiptUrl:
+            return Response({"error": "Image URL is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
+        key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        
+        document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+        
+        poller = document_intelligence_client.begin_analyze_document(
+        "prebuilt-receipt",
+        AnalyzeDocumentRequest(url_source=receiptUrl)
+        )       
+
+        receipts: AnalyzeResult = poller.result()
+        
+        if receipts.documents:
+            for idx, receipt in enumerate(receipts.documents):
+                if receipt.fields:
+                    merchant_name = receipt.fields.get("MerchantName")
+                    total = receipt.fields.get("Total")
+                    
+        receipt = Receipt.objects.create(image_url=receiptUrl,merchant=merchant_name.get('valueString'),total_amount=_format_price(total.get('valueCurrency')))
+        serializer = ReceiptSerializer(receipt)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        
+
+            
