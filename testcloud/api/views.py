@@ -170,6 +170,25 @@ def _format_price(price_dict):
     return "".join([f"{p}" for p in price_dict.values()])
 
 class ProcessReceiptView(APIView):
+    
+    def get(self, request, *args, **kwargs):
+        """
+        Retrieve all stored receipts or a specific receipt by ID.
+        """
+        receipt_id = request.query_params.get('id')  # Optionally filter by ID
+        if receipt_id:
+            try:
+                receipt = Receipt.objects.get(id=receipt_id)
+                serializer = ReceiptSerializer(receipt)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Receipt.DoesNotExist:
+                return Response({"error": "Receipt not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Retrieve all receipts if no ID is specified
+        receipts = Receipt.objects.all()
+        serializer = ReceiptSerializer(receipts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def post(self, request, *args, **kwargs):
         receiptUrl = request.data.get('image_url')
         if not receiptUrl:
@@ -192,8 +211,40 @@ class ProcessReceiptView(APIView):
                 if receipt.fields:
                     merchant_name = receipt.fields.get("MerchantName")
                     total = receipt.fields.get("Total")
+                    items = receipt.fields.get("Items")
+                    transaction_date_field = receipt.fields.get("TransactionDate")
+                    if items:
+                        receipt_items = []
+                        for idx, item in enumerate(items.get("valueArray")):
+                            item_details = {}
+                            item_description = item.get("valueObject").get("Description")
+                            if item_description:
+                                item_details["description"] = {
+                                "value": item_description.get("valueString"),
+                                }
+
+                            item_quantity = item.get("valueObject").get("Quantity")
+                            if item_quantity:
+                                item_details["quantity"] = {
+                                "value": item_quantity.get("valueString"),
+                                }
+
+                            item_total_price = item.get("valueObject").get("TotalPrice")
+                            if item_total_price:
+                                item_details["total_price"] = {
+                                "value": str(item_total_price.get("valueCurrency")),
+                                }
+
+                            receipt_items.append(item_details)
+
+                        
                     
-        receipt = Receipt.objects.create(image_url=receiptUrl,merchant=merchant_name.get('valueString'),total_amount=_format_price(total.get('valueCurrency')))
+        receipt = Receipt.objects.create(image_url=receiptUrl,
+                                         merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
+                                         total_amount=_format_price(total.get('valueCurrency')) if total else "0.00",
+                                         parsed_items=receipt_items,
+                                         transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None
+                                         )
         serializer = ReceiptSerializer(receipt)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

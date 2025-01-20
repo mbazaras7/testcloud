@@ -83,10 +83,15 @@ class Expense(Transaction):
   
 
 class Receipt(models.Model):
-    image_url = models.URLField(max_length=500)  # Store uploaded receipt image URLs
-    merchant = models.CharField(max_length=100,verbose_name=_("Merchant"))
-    total_amount = models.CharField(max_length=100, verbose_name=_("Total"))
+    image_url = models.URLField(max_length=500, verbose_name=_("Image URL"))  # Store uploaded receipt image URLs
+    merchant = models.CharField(max_length=100, verbose_name=_("Merchant"), blank=True, null=True)
+    total_amount = models.CharField(max_length=100, verbose_name=_("Total"), blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    parsed_items = models.JSONField(blank=True, null=True, verbose_name=_("Parsed Items"))  # Store parsed item details (list of dictionaries)
+    transaction_date = models.DateField(blank=True, null=True, verbose_name=_("Transaction Date")) 
+    
+    def __str__(self):
+        return f"Receipt from {self.merchant or 'Unknown Merchant'} uploaded on {self.uploaded_at}"
 
 
 

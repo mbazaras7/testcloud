@@ -78,7 +78,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
 class ReceiptSerializer(serializers.ModelSerializer):
     class Meta:
         model = Receipt
-        fields = ['id', 'image_url', 'merchant', 'total_amount', 'uploaded_at']
+        fields = ['id', 'image_url', 'merchant', 'total_amount','transaction_date', 'parsed_items', 'uploaded_at']
 
 
 # Budget Serializer
