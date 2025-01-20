@@ -169,25 +169,17 @@ def _format_price(price_dict):
         return "N/A"
     return "".join([f"{p}" for p in price_dict.values()])
 
-class ProcessReceiptView(APIView):
+class ReceiptViewSet(viewsets.ModelViewSet):
+    serializer_class = ReceiptSerializer
+    queryset = Receipt.objects.all()
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_fields = ['id','merchant']
     
-    def get(self, request, *args, **kwargs):
-        """
-        Retrieve all stored receipts or a specific receipt by ID.
-        """
-        receipt_id = request.query_params.get('id')  # Optionally filter by ID
-        if receipt_id:
-            try:
-                receipt = Receipt.objects.get(id=receipt_id)
-                serializer = ReceiptSerializer(receipt)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except Receipt.DoesNotExist:
-                return Response({"error": "Receipt not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Retrieve all receipts if no ID is specified
-        receipts = Receipt.objects.all()
-        serializer = ReceiptSerializer(receipts, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def perform_create(self, serializer):
+
+        serializer.save()
+
+class ProcessReceiptView(APIView):
 
     def post(self, request, *args, **kwargs):
         receiptUrl = request.data.get('image_url')
