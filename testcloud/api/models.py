@@ -89,6 +89,7 @@ class Receipt(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     parsed_items = models.JSONField(blank=True, null=True, verbose_name=_("Parsed Items"))  # Store parsed item details (list of dictionaries)
     transaction_date = models.DateField(blank=True, null=True, verbose_name=_("Transaction Date")) 
+    receipt_category = models.CharField(max_length=100, verbose_name=_("Category"), blank=True, null=True)
     
     def __str__(self):
         return f"Receipt from {self.merchant or 'Unknown Merchant'} uploaded on {self.uploaded_at}"

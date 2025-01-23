@@ -106,7 +106,6 @@ class IncomeViewSet(viewsets.ModelViewSet):
         #serializer.save(user=self.request.user)
         serializer.save()
 
-
 # Expense ViewSet
 #class ExpenseViewSet(UserScopedViewSet):c
 class ExpenseViewSet(viewsets.ModelViewSet):
@@ -119,20 +118,6 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
         #serializer.save(user=self.request.user)
         serializer.save()
-
-
-# Receipt ViewSet
-'''
-class ReceiptViewSet(viewsets.ModelViewSet):
-    serializer_class = ReceiptSerializer
-    queryset = Receipt.objects.all()
-    permission_classes = [IsAuthenticated]
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['transaction']
-
-    def get_queryset(self):
-        return Receipt.objects.filter(transaction__user=self.request.user)
-'''
 
 # Budget ViewSet
 class BudgetViewSet(UserScopedViewSet):
@@ -186,8 +171,10 @@ class ProcessReceiptView(APIView):
         if not receiptUrl:
             return Response({"error": "Image URL is required."}, status=status.HTTP_400_BAD_REQUEST)
         
-        endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
-        key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
+        #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAACi5YpzXJ3w3AAALACOGLe2w"
+        endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
         
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         
@@ -205,6 +192,7 @@ class ProcessReceiptView(APIView):
                     total = receipt.fields.get("Total")
                     items = receipt.fields.get("Items")
                     transaction_date_field = receipt.fields.get("TransactionDate")
+                    receipt_category = receipt.fields.get("ReceiptType")
                     if items:
                         receipt_items = []
                         for idx, item in enumerate(items.get("valueArray")):
@@ -226,7 +214,7 @@ class ProcessReceiptView(APIView):
                                 item_details["total_price"] = {
                                 "value": str(item_total_price.get("valueCurrency")),
                                 }
-
+                            #Later when have time, add each item to expense aswell
                             receipt_items.append(item_details)
 
                         
@@ -235,7 +223,8 @@ class ProcessReceiptView(APIView):
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                          total_amount=_format_price(total.get('valueCurrency')) if total else "0.00",
                                          parsed_items=receipt_items,
-                                         transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None
+                                         transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None,
+                                         receipt_category=receipt_category.get('valueString') if receipt_category else None,
                                          )
         serializer = ReceiptSerializer(receipt)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
