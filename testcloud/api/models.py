@@ -56,7 +56,7 @@ class Transaction(models.Model):
     #user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="%(class)ss", verbose_name=_("User"), null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("Amount"), help_text=_("Enter the transaction amount."))
     category = models.CharField(max_length=50,verbose_name=_("Category"),help_text=_("Specify the category of the transaction")) # going to need to add list of categories
-    date = models.DateField(verbose_name=_("Transaction Date"),help_text=_("The date of the transaction."))
+    date = models.DateField(blank=True, null=True, verbose_name=_("Transaction Date"),help_text=_("The date of the transaction."))
     created_at = models.DateTimeField(auto_now_add=True,verbose_name=_("Created At"))
     updated_at = models.DateTimeField(auto_now=True,verbose_name=_("Updated At"))
     

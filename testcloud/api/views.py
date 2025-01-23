@@ -171,10 +171,8 @@ class ProcessReceiptView(APIView):
         if not receiptUrl:
             return Response({"error": "Image URL is required."}, status=status.HTTP_400_BAD_REQUEST)
         
-        #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
-        #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
-        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAACi5YpzXJ3w3AAALACOGLe2w"
-        endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
+        endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
+        key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
         
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         
@@ -212,9 +210,16 @@ class ProcessReceiptView(APIView):
                             item_total_price = item.get("valueObject").get("TotalPrice")
                             if item_total_price:
                                 item_details["total_price"] = {
-                                "value": str(item_total_price.get("valueCurrency")),
+                                "value": str(item_total_price.get("valueCurrency").get("amount")),
                                 }
                             #Later when have time, add each item to expense aswell
+                            Expense.objects.create(
+                                amount=item_total_price.get("valueCurrency").get("amount"),
+                                category=receipt_category.get('valueString') if receipt_category else None,
+                                date=transaction_date_field.get("valueDate") if transaction_date_field else None,
+                                vendor=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
+                                payment_method=None,
+                            )
                             receipt_items.append(item_details)
 
                         
