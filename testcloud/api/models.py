@@ -83,7 +83,7 @@ class Expense(Transaction):
   
 
 class Receipt(models.Model):
-    image_url = models.URLField(max_length=500, verbose_name=_("Image URL"))  # Store uploaded receipt image URLs
+    image_url = models.URLField(max_length=500, verbose_name=_("Image URL"), blank=True, null=True)  # Store uploaded receipt image URLs
     merchant = models.CharField(max_length=100, verbose_name=_("Merchant"), blank=True, null=True)
     total_amount = models.CharField(max_length=100, verbose_name=_("Total"), blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)

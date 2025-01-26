@@ -2,6 +2,9 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentRequest
 from django.http import HttpResponse
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 from django.shortcuts import render
 from rest_framework import viewsets, filters, status
 from rest_framework.views import APIView
@@ -165,22 +168,39 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 class ProcessReceiptView(APIView):
-
+    
     def post(self, request, *args, **kwargs):
         receiptUrl = request.data.get('image_url')
-        if not receiptUrl:
-            return Response({"error": "Image URL is required."}, status=status.HTTP_400_BAD_REQUEST)
+        uploaded_file = request.FILES.get('image')
         
         endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
         key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
-        
+    
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         
-        poller = document_intelligence_client.begin_analyze_document(
-        "prebuilt-receipt",
-        AnalyzeDocumentRequest(url_source=receiptUrl)
-        )       
+        if receiptUrl:
+            # Process URL
+            poller = document_intelligence_client.begin_analyze_document(
+                "prebuilt-receipt",
+                AnalyzeDocumentRequest(url_source=receiptUrl)
+            )
+        elif uploaded_file:
+            # Save uploaded file temporarily
+            file_path = default_storage.save(uploaded_file.name, ContentFile(uploaded_file.read()))
+            file_path_full = default_storage.path(file_path)
 
+            # Process the uploaded file
+            with open(file_path_full, "rb") as image_data:
+                poller = document_intelligence_client.begin_analyze_document(
+                    "prebuilt-receipt",
+                    body=image_data
+                )
+
+            # Clean up: delete the temporary file
+            default_storage.delete(file_path)
+        else:
+            return Response({"error": "Either 'image_url' or an uploaded image is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
         receipts: AnalyzeResult = poller.result()
         
         if receipts.documents:
@@ -224,7 +244,7 @@ class ProcessReceiptView(APIView):
 
                         
                     
-        receipt = Receipt.objects.create(image_url=receiptUrl,
+        receipt = Receipt.objects.create(image_url=receiptUrl if receiptUrl else None,
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                          total_amount=_format_price(total.get('valueCurrency')) if total else "0.00",
                                          parsed_items=receipt_items,
