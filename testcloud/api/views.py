@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Income, Expense, Budget, Receipt
+from .models import Income, Expense, Budget, Receipt, User
 from .serializers import (
     #TransactionSerializer,
     IncomeSerializer,
@@ -24,19 +24,14 @@ from .serializers import (
 )
 from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate    
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import BasePermission, AllowAny
 import os
 
 
 User = get_user_model()
-
-'''
-class AllowDummyToken(BasePermission):
-    def has_permission(self, request, view):
-        return request.headers.get('Authorization') == f"Bearer test-token" #delete later in development
-'''
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -253,6 +248,30 @@ class ProcessReceiptView(APIView):
                                          )
         serializer = ReceiptSerializer(receipt)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+class LoginView(APIView):
+    def post(self, request, *args, **kwargs):
+        # Get email and password from request data
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        # Authenticate the user
+        user = authenticate(email=email, password=password)
+
+        if user:
+            # Generate JWT token
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'full_name': user.full_name,
+                }
+            }, status=status.HTTP_200_OK)
+
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
         
 
