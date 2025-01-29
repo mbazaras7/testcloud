@@ -26,6 +26,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AZURE_STORAGE_ACCOUNT_NAME = "testcloudblob"
+AZURE_STORAGE_ACCOUNT_KEY = "EMNuCh/mIyM97+CH6MYiXzeXv7Vwkp2VqAXtn+jaqGfuvZf6biFl4j+4v37b3lwv8JJ0Cplq7E21+AStyNNiKg=="
+AZURE_CONTAINER_NAME = "testcloud-blob"
 
 # Application definition
 

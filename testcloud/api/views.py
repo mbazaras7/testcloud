@@ -1,7 +1,9 @@
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentRequest
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from django.http import HttpResponse
+from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -28,8 +30,11 @@ from django.contrib.auth import get_user_model, authenticate
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import BasePermission, AllowAny
+from PIL import Image
 import os
-
+import io
+from io import BytesIO
+import uuid
 
 User = get_user_model()
 
@@ -165,36 +170,22 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 class ProcessReceiptView(APIView):
     
     def post(self, request, *args, **kwargs):
-        receiptUrl = request.data.get('image_url')
+        #receiptUrl = request.data.get('image_url')
         uploaded_file = request.FILES.get('image')
+        blob_name = f"receipt_{uuid.uuid4().hex}.jpg"
         
+        receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
         endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
         key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
     
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
-        
+        print(receiptUrl)
         if receiptUrl:
             # Process URL
             poller = document_intelligence_client.begin_analyze_document(
                 "prebuilt-receipt",
                 AnalyzeDocumentRequest(url_source=receiptUrl)
             )
-        elif uploaded_file:
-            # Save uploaded file temporarily
-            file_path = default_storage.save(uploaded_file.name, ContentFile(uploaded_file.read()))
-            file_path_full = default_storage.path(file_path)
-
-            # Process the uploaded file
-            with open(file_path_full, "rb") as image_data:
-                poller = document_intelligence_client.begin_analyze_document(
-                    "prebuilt-receipt",
-                    body=image_data
-                )
-
-            # Clean up: delete the temporary file
-            default_storage.delete(file_path)
-        else:
-            return Response({"error": "Either 'image_url' or an uploaded image is required."}, status=status.HTTP_400_BAD_REQUEST)
         
         receipts: AnalyzeResult = poller.result()
         
@@ -249,6 +240,35 @@ class ProcessReceiptView(APIView):
         serializer = ReceiptSerializer(receipt)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+def upload_image_to_azure(image_file, blob_name):
+    """Uploads an image to Azure Blob Storage and returns the URL."""
+    compressed_image = compress_image(image_file)
+    # Connect to Azure Blob Storage
+    blob_service_client = BlobServiceClient(
+        f'https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net',
+        credential=settings.AZURE_STORAGE_ACCOUNT_KEY
+    )
+
+    blob_client = blob_service_client.get_blob_client(container=settings.AZURE_CONTAINER_NAME, blob=blob_name)
+
+    # Upload Image
+    blob_client.upload_blob(compressed_image, overwrite=True)
+
+    # Generate SAS URL with expiration time (e.g., 1 hour)
+    sas_token = generate_blob_sas(
+        account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
+        container_name=settings.AZURE_CONTAINER_NAME,
+        blob_name=blob_name,
+        account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
+        permission=BlobSasPermissions(read=True),
+        expiry=datetime.utcnow() + timedelta(hours=1)  # URL expires in 1 hour
+    )
+
+    sas_url = f"{blob_client.url}?{sas_token}"
+    print("Generated SAS URL:", sas_url)  # Debugging
+
+    return sas_url
+    
 class LoginView(APIView):
     def post(self, request, *args, **kwargs):
         # Get email and password from request data
@@ -273,6 +293,19 @@ class LoginView(APIView):
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
+def compress_image(image_file):
+    """Compress the image to reduce file size before uploading."""
+    img = Image.open(image_file)
+
+    # Convert to JPEG (reduces file size)
+    img = img.convert("RGB")
+
+    # Save to buffer with compression
+    img_io = BytesIO()
+    img.save(img_io, format="JPEG", quality=70)  # Adjust quality (70-80 is good)
+    img_io.seek(0)
+
+    return img_io
         
 
             
