@@ -271,7 +271,6 @@ def upload_image_to_azure(image_file, blob_name):
         blob_name=blob_name,
         account_key=AZURE_STORAGE_ACCOUNT_KEY,
         permission=BlobSasPermissions(read=True),
-        expiry=datetime.utcnow() + timedelta(hours=1)  # URL expires in 1 hour
     )
 
     sas_url = f"{blob_client.url}?{sas_token}"
