@@ -252,15 +252,16 @@ def upload_image_to_azure(image_file, blob_name):
     AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
     AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
     AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
+
     compressed_image = compress_image(image_file)
     # Connect to Azure Blob Storage
+    
     blob_service_client = BlobServiceClient(
         f'https://{AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net',
         credential=AZURE_STORAGE_ACCOUNT_KEY
     )
 
     blob_client = blob_service_client.get_blob_client(container=AZURE_CONTAINER_NAME, blob=blob_name)
-
     # Upload Image
     blob_client.upload_blob(compressed_image, overwrite=True)
 
@@ -271,6 +272,7 @@ def upload_image_to_azure(image_file, blob_name):
         blob_name=blob_name,
         account_key=AZURE_STORAGE_ACCOUNT_KEY,
         permission=BlobSasPermissions(read=True),
+        expiry=datetime.utcnow() + timedelta(days=365 * 100)  # URL expires in 1 hour
     )
 
     sas_url = f"{blob_client.url}?{sas_token}"
