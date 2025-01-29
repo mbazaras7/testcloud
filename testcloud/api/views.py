@@ -34,7 +34,7 @@ from PIL import Image
 import os
 import io
 from io import BytesIO
-import uuid
+import time
 
 User = get_user_model()
 
@@ -167,12 +167,18 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
+def generate_filename(filename):
+    timestamp = int(time.time())  # Get current timestamp
+    extension = filename.split('.')[-1]  # Extract file extension
+    return f"{timestamp}.{extension}"  # Return unique filename
+
 class ProcessReceiptView(APIView):
     
     def post(self, request, *args, **kwargs):
         #receiptUrl = request.data.get('image_url')
         uploaded_file = request.FILES.get('image')
-        blob_name = f"receipt_{uuid.uuid4().hex}.jpg"
+        #blob_name = f"receipt_{uuid.uuid4().hex}.jpg"
+        blob_name = generate_filename(uploaded_file.name)
         
         receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
         endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
