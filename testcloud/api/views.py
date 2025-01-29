@@ -242,24 +242,28 @@ class ProcessReceiptView(APIView):
     
 def upload_image_to_azure(image_file, blob_name):
     """Uploads an image to Azure Blob Storage and returns the URL."""
+    
+    AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
+    AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
+    AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
     compressed_image = compress_image(image_file)
     # Connect to Azure Blob Storage
     blob_service_client = BlobServiceClient(
-        f'https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net',
-        credential=settings.AZURE_STORAGE_ACCOUNT_KEY
+        f'https://{AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net',
+        credential=AZURE_STORAGE_ACCOUNT_KEY
     )
 
-    blob_client = blob_service_client.get_blob_client(container=settings.AZURE_CONTAINER_NAME, blob=blob_name)
+    blob_client = blob_service_client.get_blob_client(container=AZURE_CONTAINER_NAME, blob=blob_name)
 
     # Upload Image
     blob_client.upload_blob(compressed_image, overwrite=True)
 
     # Generate SAS URL with expiration time (e.g., 1 hour)
     sas_token = generate_blob_sas(
-        account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
-        container_name=settings.AZURE_CONTAINER_NAME,
+        account_name=AZURE_STORAGE_ACCOUNT_NAME,
+        container_name=AZURE_CONTAINER_NAME,
         blob_name=blob_name,
-        account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
+        account_key=AZURE_STORAGE_ACCOUNT_KEY,
         permission=BlobSasPermissions(read=True),
         expiry=datetime.utcnow() + timedelta(hours=1)  # URL expires in 1 hour
     )
