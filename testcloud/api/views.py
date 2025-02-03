@@ -262,6 +262,7 @@ def upload_image_to_azure(image_file, blob_name):
     )
 
     blob_client = blob_service_client.get_blob_client(container=AZURE_CONTAINER_NAME, blob=blob_name)
+    blob_client.set_http_headers(content_settings={"content_type": "image/png"})
     # Upload Image
     blob_client.upload_blob(compressed_image, overwrite=True)
 
