@@ -1,7 +1,7 @@
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentRequest
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
 from django.http import HttpResponse
 from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -262,9 +262,9 @@ def upload_image_to_azure(image_file, blob_name):
     )
 
     blob_client = blob_service_client.get_blob_client(container=AZURE_CONTAINER_NAME, blob=blob_name)
-    blob_client.set_http_headers(content_settings={"content_type": "image/png"})
-    # Upload Image
     blob_client.upload_blob(compressed_image, overwrite=True)
+    blob_client.set_http_headers(content_settings=ContentSettings(content_type="image/png"))
+    # Upload Image
 
     # Generate SAS URL with expiration time (e.g., 1 hour)
     sas_token = generate_blob_sas(
