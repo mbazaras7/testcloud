@@ -79,6 +79,7 @@ class Income(Transaction):
         verbose_name_plural = _("Incomes")
 
 class Expense(Transaction):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="expenses")
     vendor = models.CharField(max_length=100,blank=True,null=True,verbose_name=_("Vendor"),help_text=_("The vendor or merchant associated with the expense."))
     payment_method = models.CharField(max_length=50,blank=True,null=True,verbose_name=_("Payment Method"),help_text=_("Payment method used for the expense, e.g., credit card, cash."))
     class Meta:
@@ -86,7 +87,8 @@ class Expense(Transaction):
         verbose_name_plural = _("Expenses")
 
 class Budget(models.Model):
-    #user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
+    name = models.CharField(max_length=255, null=True, blank=True, default="Budget")
     category = models.CharField(max_length=255, null=True, blank=True)  # Budget category
     limit_amount = models.DecimalField(max_digits=10, decimal_places=2)  # Budget limit
     current_spending = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Total spent
@@ -96,17 +98,16 @@ class Budget(models.Model):
 
     def update_spending(self):
         """ Update current spending based on linked receipts' total amounts. """
-        print(Receipt.objects.filter(transaction_date__range=[self.start_date, self.end_date]).values("total_amount"))
         total_spent = (
             Receipt.objects.filter(
                 Q(transaction_date__range=[self.start_date, self.end_date]) |  # Use transaction_date if available
-                Q(transaction_date__isnull=True, uploaded_at__range=[self.start_date, self.end_date])  # Otherwise, use uploaded_at
+                Q(transaction_date__isnull=True, uploaded_at__range=[self.start_date, self.end_date]),  # Otherwise, use uploaded_at
+                user=self.user,
             )
             .exclude(total_amount=None)
             .annotate(total_as_float=Cast("total_amount", FloatField()))
             .aggregate(total=Sum("total_as_float"))["total"] or 0
         )
-        print(total_spent)
         self.current_spending = total_spent
         self.save()
 
@@ -116,6 +117,7 @@ class Budget(models.Model):
 
 
 class Receipt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="receipts")
     image_url = models.URLField(max_length=500, verbose_name=_("Image URL"), blank=True, null=True)  # Store uploaded receipt image URLs
     budget = models.ForeignKey(Budget, on_delete=models.SET_NULL, null=True, blank=True, related_name='receipts')  # Link to budget
     merchant = models.CharField(max_length=100, verbose_name=_("Merchant"), blank=True, null=True)
@@ -130,7 +132,7 @@ class Receipt(models.Model):
     
     def assign_to_budget(self):
         """ Automatically assigns the receipt to the correct budget if applicable. """
-        active_budget = Budget.objects.filter(start_date__lte=self.transaction_date if self.transaction_date else self.uploaded_at,end_date__gte=self.transaction_date if self.transaction_date else self.uploaded_at).first()
+        active_budget = Budget.objects.filter(user=self.user,start_date__lte=self.transaction_date if self.transaction_date else self.uploaded_at,end_date__gte=self.transaction_date if self.transaction_date else self.uploaded_at).first()
         if active_budget:
             self.budget = active_budget
             self.save()

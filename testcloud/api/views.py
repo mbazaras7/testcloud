@@ -8,19 +8,17 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.shortcuts import render
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Income, Expense, Budget, Receipt, User
 from .serializers import (
-    #TransactionSerializer,
     IncomeSerializer,
     ExpenseSerializer,
     ReceiptSerializer,
     BudgetSerializer,
-    #NotificationSerializer,
     UserSerializer,
     UserCreateSerializer
 )
@@ -97,19 +95,23 @@ class IncomeViewSet(viewsets.ModelViewSet):
 #class ExpenseViewSet(UserScopedViewSet):c
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    queryset = Expense.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    def get_queryset(self):
+        return Expense.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_fields = ['category', 'date', 'vendor', 'payment_method']
     
     def perform_create(self, serializer):
 
         #serializer.save(user=self.request.user)
-        serializer.save()
+        serializer.save(user=self.request.user)
 
 # Budget ViewSet
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
-    queryset = Budget.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    def get_queryset(self):
+        return Budget.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_fields = ['id', 'start_date', 'end_date']
 
@@ -117,7 +119,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
         """
         Ensure that `current_spending` is initialized to zero upon creation.
         """
-        serializer.save()
+        serializer.save(user=self.request.user)
 
 def _format_price(price_dict):
     if price_dict is None:
@@ -126,13 +128,15 @@ def _format_price(price_dict):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
-    queryset = Receipt.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    def get_queryset(self):
+        return Receipt.objects.filter(user=self.request.user)
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_fields = ['id','merchant']
     
     def perform_create(self, serializer):
 
-        serializer.save()
+        serializer.save(user=self.request.user)
 
 def generate_filename(filename):
     timestamp = int(time.time())  # Get current timestamp
@@ -140,6 +144,7 @@ def generate_filename(filename):
     return f"{timestamp}.{extension}"  # Return unique filename
 
 class ProcessReceiptView(APIView):
+    permission_classes = [IsAuthenticated]
     
     def post(self, request, *args, **kwargs):
         #receiptUrl = request.data.get('image_url')
@@ -193,6 +198,7 @@ class ProcessReceiptView(APIView):
                                 }
                             #Later when have time, add each item to expense aswell
                             Expense.objects.create(
+                                user=request.user,
                                 amount=item_total_price.get("valueCurrency").get("amount"),
                                 category=receipt_category.get('valueString') if receipt_category else None,
                                 date=transaction_date_field.get("valueDate") if transaction_date_field else None,
@@ -203,7 +209,8 @@ class ProcessReceiptView(APIView):
 
                         
                     
-        receipt = Receipt.objects.create(image_url=receiptUrl if receiptUrl else None,
+        receipt = Receipt.objects.create(user=request.user,
+                                         image_url=receiptUrl if receiptUrl else None,
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                          total_amount = float(total.get("valueCurrency", {}).get("amount")) if total else 0.00,
                                          parsed_items=receipt_items,

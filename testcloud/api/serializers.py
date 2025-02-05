@@ -53,10 +53,8 @@ class ExpenseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Expense
-        #fields = ['id', 'user', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
-        fields = ['id', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
-        #read_only_fields = ['user', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'user', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'created_at', 'updated_at']
 
 '''
     def create(self, validated_data):
@@ -81,16 +79,17 @@ class ReceiptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Receipt
-        fields = ['id', 'image_url', 'merchant', 'total_amount','transaction_date', 'parsed_items', 'receipt_category', 'uploaded_at']
+        fields = ['id', 'user', 'image_url', 'merchant', 'total_amount','transaction_date', 'parsed_items', 'receipt_category', 'uploaded_at']
 
 
 # Budget Serializer
 class BudgetSerializer(serializers.ModelSerializer):
     receipts = ReceiptSerializer(many=True, read_only=True)  # Show receipts under budget
-
+    start_date = serializers.DateField(format="%d-%m-%Y")
+    end_date = serializers.DateField(format="%d-%m-%Y")
     class Meta:
         model = Budget
-        fields = ['id', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
+        fields = ['id', 'user', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
         read_only_fields = ['current_spending']
 
 
