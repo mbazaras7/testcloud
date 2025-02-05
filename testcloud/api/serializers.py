@@ -51,8 +51,6 @@ class IncomeSerializer(serializers.ModelSerializer):
 # Expense Serializer
 class ExpenseSerializer(serializers.ModelSerializer):
     
-    uploaded_at = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S")
-
     class Meta:
         model = Expense
         #fields = ['id', 'user', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
@@ -88,14 +86,12 @@ class ReceiptSerializer(serializers.ModelSerializer):
 
 # Budget Serializer
 class BudgetSerializer(serializers.ModelSerializer):
+    receipts = ReceiptSerializer(many=True, read_only=True)  # Show receipts under budget
+
     class Meta:
         model = Budget
-        fields = ['id', 'user', 'category', 'limit_amount', 'current_spending']
-        read_only_fields = ['user', 'current_spending']
-
-    def create(self, validated_data):
-        user = self.context['request'].user  # Automatically associate the budget with the current user
-        return Budget.objects.create(user=user, **validated_data)
+        fields = ['id', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
+        read_only_fields = ['current_spending']
 
 
 # Notification Serializer

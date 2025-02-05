@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy as _
+from django.db.models import Sum
 
 # Create your models here.
 
@@ -81,10 +82,31 @@ class Expense(Transaction):
     class Meta:
         verbose_name = _("Expense")
         verbose_name_plural = _("Expenses")
-  
+
+class Budget(models.Model):
+    #user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
+    category = models.CharField(max_length=255, null=True, blank=True)  # Budget category
+    limit_amount = models.DecimalField(max_digits=10, decimal_places=2)  # Budget limit
+    current_spending = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Total spent
+    start_date = models.DateField()  # Start of budget period
+    end_date = models.DateField()  # End of budget period
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def update_spending(self):
+        """ Update current spending based on linked receipts' total amounts. """
+        total_spent = Receipt.objects.filter(transaction_date__range=[self.start_date, self.end_date]
+                                             ).aggregate(total=Sum('total_amount'))['total'] or 0
+        self.current_spending = total_spent
+        self.save()
+
+    class Meta:
+        verbose_name = _("Budget")
+        verbose_name_plural = _("Budgets")
+
 
 class Receipt(models.Model):
     image_url = models.URLField(max_length=500, verbose_name=_("Image URL"), blank=True, null=True)  # Store uploaded receipt image URLs
+    budget = models.ForeignKey(Budget, on_delete=models.SET_NULL, null=True, blank=True, related_name='receipts')  # Link to budget
     merchant = models.CharField(max_length=100, verbose_name=_("Merchant"), blank=True, null=True)
     total_amount = models.CharField(max_length=100, verbose_name=_("Total"), blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -94,33 +116,12 @@ class Receipt(models.Model):
     
     def __str__(self):
         return f"Receipt from {self.merchant or 'Unknown Merchant'} uploaded on {self.uploaded_at}"
+    
+    def assign_to_budget(self):
+        """ Automatically assigns the receipt to the correct budget if applicable. """
+        active_budget = Budget.objects.filter(start_date__lte=self.transaction_date if self.transaction_date else self.uploaded_at,end_date__gte=self.transaction_date if self.transaction_date else self.uploaded_at).first()
+        if active_budget:
+            self.budget = active_budget
+            self.save()
+            active_budget.update_spending()
 
-
-
-class Budget(models.Model):
-    #user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
-    category = models.CharField(max_length=50)
-    limit_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    current_spending = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-
-    class Meta:
-        verbose_name = _("Budget")
-        verbose_name_plural = _("Budgets")
-
-'''
-class Notification(models.Model):
-    NOTIFICATION_TYPES = [
-        ('anomaly', 'Anomaly Alert'),
-        ('recommendation', 'Budget Recommendation'),
-        ('prediction', 'Spending Prediction'),
-    ]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
-    type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
-    message = models.TextField()
-    sent_at = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"Notification for {self.user.username}: {self.type.capitalize()}"
-'''
