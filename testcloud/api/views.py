@@ -148,12 +148,9 @@ class ProcessReceiptView(APIView):
         blob_name = generate_filename(uploaded_file.name)
         
         receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
-        #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
-        endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
-        #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
-        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAACi5YpzXJ3w3AAALACOGLe2w"
+        endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
+        key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
 
-    
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         print(receiptUrl)
         if receiptUrl:
@@ -208,7 +205,7 @@ class ProcessReceiptView(APIView):
                     
         receipt = Receipt.objects.create(image_url=receiptUrl if receiptUrl else None,
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
-                                         total_amount=_format_price(total.get('valueCurrency')) if total else "0.00",
+                                         total_amount = float(total.get("valueCurrency", {}).get("amount")) if total else 0.00,
                                          parsed_items=receipt_items,
                                          transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None,
                                          receipt_category=receipt_category.get('valueString') if receipt_category else None,
@@ -220,12 +217,9 @@ class ProcessReceiptView(APIView):
 def upload_image_to_azure(image_file, blob_name):
     """Uploads an image to Azure Blob Storage and returns the URL."""
     
-    #AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
-    AZURE_STORAGE_ACCOUNT_NAME = "testcloudblob"
-    #AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
-    AZURE_STORAGE_ACCOUNT_KEY = "EMNuCh/mIyM97+CH6MYiXzeXv7Vwkp2VqAXtn+jaqGfuvZf6biFl4j+4v37b3lwv8JJ0Cplq7E21+AStyNNiKg=="
-    #AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
-    AZURE_CONTAINER_NAME = "testcloud-blob"
+    AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
+    AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
+    AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
 
     compressed_image = compress_image(image_file)
     # Connect to Azure Blob Storage
