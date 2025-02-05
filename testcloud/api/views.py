@@ -79,22 +79,6 @@ class UserScopedViewSet(viewsets.ModelViewSet):
         """
         serializer.save(user=self.request.user)
 
-# Transaction ViewSet
-'''
-class TransactionViewSet(viewsets.ModelViewSet):
-    serializer_class = TransactionSerializer
-    queryset = Transaction.objects.all()
-    permission_classes = [IsAuthenticated]
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['user', 'type', 'category', 'date']
-
-    def get_queryset(self):
-        return Transaction.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-'''
-
 # Income ViewSet
 #class IncomeViewSet(UserScopedViewSet):
 class IncomeViewSet(viewsets.ModelViewSet):
@@ -123,7 +107,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 # Budget ViewSet
-class BudgetViewSet(UserScopedViewSet):
+class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
     queryset = Budget.objects.all()
     filter_backends = (filters.DjangoFilterBackend,)
@@ -133,25 +117,8 @@ class BudgetViewSet(UserScopedViewSet):
         """
         Ensure that `current_spending` is initialized to zero upon creation.
         """
-        serializer.save(user=self.request.user, current_spending=0)
+        serializer.save()
 
-# Notification ViewSet
-'''
-class NotificationViewSet(viewsets.ModelViewSet):
-    serializer_class = NotificationSerializer
-    queryset = Notification.objects.all()
-    permission_classes = [IsAuthenticated]
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['user', 'type', 'is_read']
-
-    def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user)
-
-    def perform_update(self, serializer):
-        notification = serializer.save()
-        notification.is_read = True
-        notification.save()
-'''
 def _format_price(price_dict):
     if price_dict is None:
         return "N/A"
@@ -203,8 +170,8 @@ class ProcessReceiptView(APIView):
                     items = receipt.fields.get("Items")
                     transaction_date_field = receipt.fields.get("TransactionDate")
                     receipt_category = receipt.fields.get("ReceiptType")
+                    receipt_items = []
                     if items:
-                        receipt_items = []
                         for idx, item in enumerate(items.get("valueArray")):
                             item_details = {}
                             item_description = item.get("valueObject").get("Description")
@@ -252,6 +219,7 @@ def upload_image_to_azure(image_file, blob_name):
     AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
     AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
     AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
+
 
     compressed_image = compress_image(image_file)
     # Connect to Azure Blob Storage

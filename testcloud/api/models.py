@@ -98,7 +98,7 @@ class Receipt(models.Model):
 
 
 class Budget(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
+    #user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
     category = models.CharField(max_length=50)
     limit_amount = models.DecimalField(max_digits=10, decimal_places=2)
     current_spending = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)

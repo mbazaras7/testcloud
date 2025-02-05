@@ -50,6 +50,9 @@ class IncomeSerializer(serializers.ModelSerializer):
 
 # Expense Serializer
 class ExpenseSerializer(serializers.ModelSerializer):
+    
+    uploaded_at = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S")
+
     class Meta:
         model = Expense
         #fields = ['id', 'user', 'amount', 'category', 'date', 'vendor', 'payment_method', 'created_at', 'updated_at']
@@ -76,6 +79,8 @@ class ReceiptSerializer(serializers.ModelSerializer):
         return receipt
 '''
 class ReceiptSerializer(serializers.ModelSerializer):
+    uploaded_at = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S")
+
     class Meta:
         model = Receipt
         fields = ['id', 'image_url', 'merchant', 'total_amount','transaction_date', 'parsed_items', 'receipt_category', 'uploaded_at']
