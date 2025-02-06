@@ -5,6 +5,7 @@ from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPerm
 from django.http import HttpResponse
 from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models import Q
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.shortcuts import render
@@ -160,7 +161,7 @@ class ProcessReceiptView(APIView):
         #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
         endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
         #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
-        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAA Ci5YpzXJ3w3AAALACOGLe2w"
+        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAACi5YpzXJ3w3AAALACOGLe2w"
 
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         print(receiptUrl)
@@ -303,12 +304,35 @@ def compress_image(image_file):
 
     return img_io
         
-class ExportReceiptsCSV(APIView):
+class ExportReceiptsXlsxView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        """ Generate an Excel (.xlsx) file with formatted receipts """
-        receipts = Receipt.objects.filter(user=request.user)
+        """ Generate an Excel (.xlsx) file with formatted receipts, either all or by budget """
+        
+        budget_id = kwargs.get("budget_id")  # Check if budget_id is provided in the URL
+
+        if budget_id:
+            # Export receipts for a specific budget
+            try:
+                budget = Budget.objects.get(id=budget_id, user=request.user)
+
+                receipts = Receipt.objects.filter(
+                    Q(transaction_date__range=[budget.start_date, budget.end_date]) |
+                    Q(transaction_date__isnull=True, uploaded_at__range=[budget.start_date, budget.end_date]),
+                    user=budget.user,
+                )
+                
+                if not receipts.exists():
+                    return Response({"message": "No receipts found for this budget."}, status=404)
+
+                filename = f"budget_{budget_id}_receipts.xlsx"
+            except Budget.DoesNotExist:
+                return Response({"error": "Budget not found"}, status=404)
+        else:
+            # Export all receipts for the user
+            receipts = Receipt.objects.filter(user=request.user)
+            filename = "receipts.xlsx"
 
         # Create an Excel workbook and sheet
         wb = openpyxl.Workbook()
@@ -316,7 +340,8 @@ class ExportReceiptsCSV(APIView):
         ws.title = "Receipts"
 
         # Define column headers
-        headers = ["ID", "Merchant", "Total Amount", "Transaction Date", "Receipt Category", "Parsed Items"]
+        headers = ["ID", "Merchant", "Total Amount", "Transaction Date", "Receipt Category", "Item Name", "Item Price"]
+        
         ws.append(headers)
 
         # Format headers
@@ -325,26 +350,35 @@ class ExportReceiptsCSV(APIView):
 
         # Write receipt data
         for receipt in receipts:
-            parsed_items = []
-            if isinstance(receipt.parsed_items, list):
-                for item in receipt.parsed_items:
-                    description = item.get("description", {}).get("value", "Unknown Item")
-                    quantity = item.get("quantity", {}).get("value", "1")
-                    total_price = item.get("total_price", {}).get("value", "0.00")
-                    parsed_items.append(f"• {description} (x{quantity}) - ${total_price}")
-
-            parsed_items_str = "\n".join(parsed_items) if parsed_items else "No Items"
-
             transaction_date = receipt.transaction_date.strftime('%d/%m/%Y') if receipt.transaction_date else receipt.uploaded_at.strftime('%d/%m/%Y')
 
-            ws.append([
+            # First row: Receipt details with the first item
+            receipt_row = [
                 receipt.id,
                 receipt.merchant,
                 receipt.total_amount,
                 transaction_date,
-                receipt.receipt_category,
-                parsed_items_str
-            ])
+                receipt.receipt_category
+            ]
+
+            if isinstance(receipt.parsed_items, list) and receipt.parsed_items:
+                first_item = receipt.parsed_items[0]
+                item_name = first_item.get("description", {}).get("value", "Unknown Item")
+                item_price = first_item.get("total_price", {}).get("value", "0.00")
+                receipt_row.append(item_name)
+                receipt_row.append(f"${item_price}")
+            else:
+                receipt_row.append("No Items")
+                receipt_row.append("-")
+
+            ws.append(receipt_row)
+
+            # Additional rows for remaining items (without repeating receipt details)
+            if isinstance(receipt.parsed_items, list) and len(receipt.parsed_items) > 1:
+                for item in receipt.parsed_items[1:]:
+                    item_name = item.get("description", {}).get("value", "Unknown Item")
+                    item_price = item.get("total_price", {}).get("value", "0.00")
+                    ws.append(["", "", "", "", "", item_name, f"${item_price}"])
 
         # Auto-adjust column widths
         for col_num, col_cells in enumerate(ws.columns, 1):
@@ -360,14 +394,9 @@ class ExportReceiptsCSV(APIView):
             ws.column_dimensions[col_letter].width = adjusted_width
 
         # Enable wrap text for the Parsed Items column
-        parsed_items_column = get_column_letter(headers.index("Parsed Items") + 1)
-        for row in ws.iter_rows(min_row=2, min_col=headers.index("Parsed Items") + 1, max_col=headers.index("Parsed Items") + 1):
-            for cell in row:
-                cell.alignment = Alignment(wrap_text=True)
-
         # Create HTTP response
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename="receipts.xlsx"'
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         wb.save(response)
 
         return response

@@ -21,5 +21,6 @@ urlpatterns = [
     path('api/schema/redoc', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('api/process-receipt/', ProcessReceiptView.as_view(), name='process-receipt'),
     path('api/login/', LoginView.as_view(), name='login'),
-    path('api/export/receipts/', ExportReceiptsCSV.as_view(), name='export-receipts'),
+    path('api/export/receipts/', ExportReceiptsXlsxView.as_view(), name='export-receipts'),
+    path("api/export/budget/<int:budget_id>/", ExportReceiptsXlsxView.as_view(), name="export_budget_receipts"),
 ]
