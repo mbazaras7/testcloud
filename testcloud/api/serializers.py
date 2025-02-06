@@ -75,11 +75,12 @@ class ReceiptSerializer(serializers.ModelSerializer):
         return receipt
 '''
 class ReceiptSerializer(serializers.ModelSerializer):
-    uploaded_at = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S")
+    uploaded_at = serializers.DateTimeField(format="%d-%m-%Y %H:%M:%S", required=False)
 
     class Meta:
         model = Receipt
         fields = ['id', 'user', 'image_url', 'merchant', 'total_amount','transaction_date', 'parsed_items', 'receipt_category', 'uploaded_at']
+        extra_kwargs = {'user': {'read_only': True},'uploaded_at': {'read_only': True}}
 
 
 # Budget Serializer
@@ -91,6 +92,7 @@ class BudgetSerializer(serializers.ModelSerializer):
         model = Budget
         fields = ['id', 'user', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
         read_only_fields = ['current_spending']
+        extra_kwargs = {'user': {'read_only': True}}
 
 
 # Notification Serializer
