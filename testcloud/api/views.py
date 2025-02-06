@@ -33,6 +33,10 @@ import os
 import io
 from io import BytesIO
 import time
+import csv
+import openpyxl
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 
 User = get_user_model()
 
@@ -153,8 +157,10 @@ class ProcessReceiptView(APIView):
         blob_name = generate_filename(uploaded_file.name)
         
         receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
-        endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
-        key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
+        endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
+        #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAA Ci5YpzXJ3w3AAALACOGLe2w"
 
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         print(receiptUrl)
@@ -224,9 +230,12 @@ class ProcessReceiptView(APIView):
 def upload_image_to_azure(image_file, blob_name):
     """Uploads an image to Azure Blob Storage and returns the URL."""
     
-    AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
-    AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
-    AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
+    #AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
+    AZURE_STORAGE_ACCOUNT_NAME = "testcloudblob"
+    #AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
+    AZURE_STORAGE_ACCOUNT_KEY = "EMNuCh/mIyM97+CH6MYiXzeXv7Vwkp2VqAXtn+jaqGfuvZf6biFl4j+4v37b3lwv8JJ0Cplq7E21+AStyNNiKg=="
+    #AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
+    AZURE_CONTAINER_NAME = "testcloud-blob"
 
     compressed_image = compress_image(image_file)
     # Connect to Azure Blob Storage
@@ -294,5 +303,71 @@ def compress_image(image_file):
 
     return img_io
         
+class ExportReceiptsCSV(APIView):
+    permission_classes = [IsAuthenticated]
 
-            
+    def get(self, request, *args, **kwargs):
+        """ Generate an Excel (.xlsx) file with formatted receipts """
+        receipts = Receipt.objects.filter(user=request.user)
+
+        # Create an Excel workbook and sheet
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Receipts"
+
+        # Define column headers
+        headers = ["ID", "Merchant", "Total Amount", "Transaction Date", "Receipt Category", "Parsed Items"]
+        ws.append(headers)
+
+        # Format headers
+        for col_num, header in enumerate(headers, 1):
+            ws[f"{get_column_letter(col_num)}1"].alignment = Alignment(horizontal="center", vertical="center")
+
+        # Write receipt data
+        for receipt in receipts:
+            parsed_items = []
+            if isinstance(receipt.parsed_items, list):
+                for item in receipt.parsed_items:
+                    description = item.get("description", {}).get("value", "Unknown Item")
+                    quantity = item.get("quantity", {}).get("value", "1")
+                    total_price = item.get("total_price", {}).get("value", "0.00")
+                    parsed_items.append(f"• {description} (x{quantity}) - ${total_price}")
+
+            parsed_items_str = "\n".join(parsed_items) if parsed_items else "No Items"
+
+            transaction_date = receipt.transaction_date.strftime('%d/%m/%Y') if receipt.transaction_date else receipt.uploaded_at.strftime('%d/%m/%Y')
+
+            ws.append([
+                receipt.id,
+                receipt.merchant,
+                receipt.total_amount,
+                transaction_date,
+                receipt.receipt_category,
+                parsed_items_str
+            ])
+
+        # Auto-adjust column widths
+        for col_num, col_cells in enumerate(ws.columns, 1):
+            max_length = 0
+            col_letter = get_column_letter(col_num)
+            for cell in col_cells:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            ws.column_dimensions[col_letter].width = adjusted_width
+
+        # Enable wrap text for the Parsed Items column
+        parsed_items_column = get_column_letter(headers.index("Parsed Items") + 1)
+        for row in ws.iter_rows(min_row=2, min_col=headers.index("Parsed Items") + 1, max_col=headers.index("Parsed Items") + 1):
+            for cell in row:
+                cell.alignment = Alignment(wrap_text=True)
+
+        # Create HTTP response
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="receipts.xlsx"'
+        wb.save(response)
+
+        return response

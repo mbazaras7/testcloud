@@ -20,5 +20,6 @@ urlpatterns = [
     path('', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/schema/redoc', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('api/process-receipt/', ProcessReceiptView.as_view(), name='process-receipt'),
-    path('api/login/', LoginView.as_view(), name='login')
+    path('api/login/', LoginView.as_view(), name='login'),
+    path('api/export/receipts/', ExportReceiptsCSV.as_view(), name='export-receipts'),
 ]
