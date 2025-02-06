@@ -356,7 +356,7 @@ class ExportReceiptsXlsxView(APIView):
             receipt_row = [
                 receipt.id,
                 receipt.merchant,
-                receipt.total_amount,
+                f"{round(receipt.total_amount, 2):.2f}",
                 transaction_date,
                 receipt.receipt_category
             ]
@@ -364,9 +364,9 @@ class ExportReceiptsXlsxView(APIView):
             if isinstance(receipt.parsed_items, list) and receipt.parsed_items:
                 first_item = receipt.parsed_items[0]
                 item_name = first_item.get("description", {}).get("value", "Unknown Item")
-                item_price = first_item.get("total_price", {}).get("value", "0.00")
+                item_price = float(first_item.get("total_price", {}).get("value", "0.00"))
                 receipt_row.append(item_name)
-                receipt_row.append(f"${item_price}")
+                receipt_row.append(f"{item_price:.2f}")
             else:
                 receipt_row.append("No Items")
                 receipt_row.append("-")
@@ -377,8 +377,8 @@ class ExportReceiptsXlsxView(APIView):
             if isinstance(receipt.parsed_items, list) and len(receipt.parsed_items) > 1:
                 for item in receipt.parsed_items[1:]:
                     item_name = item.get("description", {}).get("value", "Unknown Item")
-                    item_price = item.get("total_price", {}).get("value", "0.00")
-                    ws.append(["", "", "", "", "", item_name, f"${item_price}"])
+                    item_price = float(item.get("total_price", {}).get("value", "0.00"))
+                    ws.append(["", "", "", "", "", item_name, f"{item_price:.2f}"])
 
         # Auto-adjust column widths
         for col_num, col_cells in enumerate(ws.columns, 1):
