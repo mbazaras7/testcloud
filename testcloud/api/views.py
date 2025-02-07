@@ -21,6 +21,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Income, Expense, Budget, Receipt, User
 from .serializers import (
+    UserCreateSerializer,
+    UserSerializer,
     IncomeSerializer,
     ExpenseSerializer,
     ReceiptSerializer,
@@ -53,23 +55,21 @@ class UserViewSet(viewsets.ModelViewSet):
     A ViewSet for retrieving and creating users.
     """
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated]
+    serializer_class = UserCreateSerializer
+    permission_classes = [AllowAny]
 
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return UserCreateSerializer
-        return UserSerializer
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
 
-    def get_permissions(self):
-        if self.action == 'create':
-            self.permission_classes = [AllowAny]
-        return super().get_permissions()
-
-    def perform_create(self, serializer):
-        """
-        Save the user instance.
-        """
-        serializer.save()
+        # Generate JWT token for the new user
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "user": UserSerializer(user).data,
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }, status=status.HTTP_201_CREATED)
 
 class UserScopedViewSet(viewsets.ModelViewSet):
     """
@@ -165,8 +165,10 @@ class ProcessReceiptView(APIView):
         blob_name = generate_filename(uploaded_file.name)
         
         receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
-        endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
-        key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
+        endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
+        #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
+        key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAACi5YpzXJ3w3AAALACOGLe2w"
 
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
         print(receiptUrl)
@@ -209,6 +211,9 @@ class ProcessReceiptView(APIView):
                                 "value": str(item_total_price.get("valueCurrency").get("amount")),
                                 }
                             #Later when have time, add each item to expense aswell
+                            transaction_date = transaction_date_field.get("valueDate") if transaction_date_field else None
+                            if isinstance(transaction_date, datetime):
+                                transaction_date = transaction_date.date()  # Convert to date   
                             Expense.objects.create(
                                 user=request.user,
                                 amount=item_total_price.get("valueCurrency").get("amount"),
@@ -219,14 +224,15 @@ class ProcessReceiptView(APIView):
                             )
                             receipt_items.append(item_details)
 
-                        
-                    
+        transaction_date = transaction_date_field.get("valueDate") if transaction_date_field else None
+        if isinstance(transaction_date, datetime):
+            transaction_date = transaction_date.date()  # Convert to date              
         receipt = Receipt.objects.create(user=request.user,
                                          image_url=receiptUrl if receiptUrl else None,
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                          total_amount = float(total.get("valueCurrency", {}).get("amount")) if total else 0.00,
                                          parsed_items=receipt_items,
-                                         transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None,
+                                         transaction_date=transaction_date,
                                          receipt_category=receipt_category.get('valueString') if receipt_category else None,
                                          )
         receipt.assign_to_budget()
@@ -236,9 +242,13 @@ class ProcessReceiptView(APIView):
 def upload_image_to_azure(image_file, blob_name):
     """Uploads an image to Azure Blob Storage and returns the URL."""
     
-    AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
-    AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
-    AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
+    #AZURE_STORAGE_ACCOUNT_NAME = os.environ["AZURE_STORAGE_ACCOUNT_NAME"]
+    AZURE_STORAGE_ACCOUNT_NAME = "testcloudblob"
+    #AZURE_STORAGE_ACCOUNT_KEY = os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
+    AZURE_STORAGE_ACCOUNT_KEY = "EMNuCh/mIyM97+CH6MYiXzeXv7Vwkp2VqAXtn+jaqGfuvZf6biFl4j+4v37b3lwv8JJ0Cplq7E21+AStyNNiKg=="
+    #AZURE_CONTAINER_NAME = os.environ["AZURE_CONTAINER_NAME"]
+    AZURE_CONTAINER_NAME = "testcloud-blob"
+
 
     compressed_image = compress_image(image_file)
     # Connect to Azure Blob Storage
@@ -269,7 +279,8 @@ def upload_image_to_azure(image_file, blob_name):
     return sas_url
     
 class LoginView(APIView):
-    
+    permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         # Get email and password from request data
         email = request.data.get('email')
@@ -281,11 +292,9 @@ class LoginView(APIView):
         if user:
             # Generate JWT token
             refresh = RefreshToken.for_user(user)
-            csrf_token = get_token(request)
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-                'csrf_token': csrf_token,  # Include CSRF token
                 'user': {
                     'id': user.id,
                     'email': user.email,
@@ -295,32 +304,6 @@ class LoginView(APIView):
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
     
-    '''
-    def post(self, request, *args, **kwargs):
-        """
-        Authenticate user and start session upon login.
-        """
-        try:
-            data = json.loads(request.body)
-            email = data.get("email")
-            password = data.get("password")
-
-            user = authenticate(request, email=email, password=password)
-
-            if user is not None:
-                login(request, user)  # Start session
-
-                response = JsonResponse({"message": "Login successful"})
-                response.set_cookie("sessionid", request.session.session_key)  # Set session cookie
-
-                return response
-
-            return JsonResponse({"error": "Invalid credentials"}, status=401)
-
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON format"}, status=400)
-    '''
-
 def compress_image(image_file):
     """Compress the image to reduce file size before uploading."""
     img = Image.open(image_file)
