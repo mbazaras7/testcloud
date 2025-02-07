@@ -3,6 +3,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentRequest
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
 from django.http import HttpResponse
+from django.middleware.csrf import get_token
 from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
@@ -268,7 +269,7 @@ def upload_image_to_azure(image_file, blob_name):
     return sas_url
     
 class LoginView(APIView):
-    '''
+    
     def post(self, request, *args, **kwargs):
         # Get email and password from request data
         email = request.data.get('email')
@@ -280,9 +281,11 @@ class LoginView(APIView):
         if user:
             # Generate JWT token
             refresh = RefreshToken.for_user(user)
+            csrf_token = get_token(request)
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
+                'csrf_token': csrf_token,  # Include CSRF token
                 'user': {
                     'id': user.id,
                     'email': user.email,
@@ -291,6 +294,7 @@ class LoginView(APIView):
             }, status=status.HTTP_200_OK)
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    
     '''
     def post(self, request, *args, **kwargs):
         """
@@ -315,6 +319,7 @@ class LoginView(APIView):
 
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON format"}, status=400)
+    '''
 
 def compress_image(image_file):
     """Compress the image to reduce file size before uploading."""
