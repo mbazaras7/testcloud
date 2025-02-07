@@ -11,8 +11,12 @@ from django.core.files.base import ContentFile
 from django.shortcuts import render
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.views import APIView
+from django.contrib.auth import authenticate, login
+from django.views import View
+from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework import status, generics
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Income, Expense, Budget, Receipt, User
 from .serializers import (
@@ -30,6 +34,7 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import BasePermission, AllowAny
 from PIL import Image
+from django.utils.decorators import method_decorator
 import os
 import io
 from io import BytesIO
@@ -38,6 +43,7 @@ import csv
 import openpyxl
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
+import json
 
 User = get_user_model()
 
@@ -262,6 +268,7 @@ def upload_image_to_azure(image_file, blob_name):
     return sas_url
     
 class LoginView(APIView):
+    '''
     def post(self, request, *args, **kwargs):
         # Get email and password from request data
         email = request.data.get('email')
@@ -284,6 +291,30 @@ class LoginView(APIView):
             }, status=status.HTTP_200_OK)
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    '''
+    def post(self, request, *args, **kwargs):
+        """
+        Authenticate user and start session upon login.
+        """
+        try:
+            data = json.loads(request.body)
+            email = data.get("email")
+            password = data.get("password")
+
+            user = authenticate(request, email=email, password=password)
+
+            if user is not None:
+                login(request, user)  # Start session
+
+                response = JsonResponse({"message": "Login successful"})
+                response.set_cookie("sessionid", request.session.session_key)  # Set session cookie
+
+                return response
+
+            return JsonResponse({"error": "Invalid credentials"}, status=401)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON format"}, status=400)
 
 def compress_image(image_file):
     """Compress the image to reduce file size before uploading."""
