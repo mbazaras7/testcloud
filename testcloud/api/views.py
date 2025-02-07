@@ -35,6 +35,7 @@ from django_filters import rest_framework as filters
 from django.contrib.auth import get_user_model, authenticate    
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import BasePermission, AllowAny
 from PIL import Image
 from django.utils.decorators import method_decorator
@@ -107,6 +108,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
 #class ExpenseViewSet(UserScopedViewSet):c
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     def get_queryset(self):
         return Expense.objects.filter(user=self.request.user)    
@@ -121,6 +123,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 # Budget ViewSet
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)    
@@ -140,6 +143,7 @@ def _format_price(price_dict):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     def get_queryset(self):
         return Receipt.objects.filter(user=self.request.user)
@@ -156,6 +160,7 @@ def generate_filename(filename):
     return f"{timestamp}.{extension}"  # Return unique filename
 
 class ProcessReceiptView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, *args, **kwargs):
@@ -319,6 +324,7 @@ def compress_image(image_file):
     return img_io
         
 class ExportReceiptsXlsxView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
