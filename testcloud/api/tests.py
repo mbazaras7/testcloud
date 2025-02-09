@@ -132,8 +132,7 @@ class ReceiptTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
-'''
-figure out a way to test this mabye add url functionality for ease of use in processviewset
+
 class ProcessReceiptTests(TestCase):
     def setUp(self):
         """Create a test user for testing receipt processing."""
@@ -144,7 +143,6 @@ class ProcessReceiptTests(TestCase):
     def test_process_receipt(self):
         """Ensure the receipt processing API works (mocked response)."""
         response = self.client.post('/api/process-receipt/', {
-            'image_url': "http://example.com/sample_receipt.jpg"
+            'image_url': "https://testcloudblob.blob.core.windows.net/testcloud-blob/1739105642.jpg?se=2125-01-16T12%3A54%3A04Z&sp=r&sv=2025-01-05&sr=b&sig=RgVAeIcPvyryJsN3SpPYhsLkjvxdTu8dz71yYo2yK7Y%3D"
         })
         self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_201_CREATED])
-'''

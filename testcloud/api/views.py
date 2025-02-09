@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
 from django.core.files.storage import default_storage
+import requests
 from django.core.files.base import ContentFile
 from django.shortcuts import render
 from rest_framework import viewsets, filters, status, permissions
@@ -164,19 +165,35 @@ class ProcessReceiptView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request, *args, **kwargs):
-        #receiptUrl = request.data.get('image_url')
-        uploaded_file = request.FILES.get('image')
-        #blob_name = f"receipt_{uuid.uuid4().hex}.jpg"
-        blob_name = generate_filename(uploaded_file.name)
         
-        receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
+        image_url = request.data.get('image_url')
+        uploaded_file = request.FILES.get('image')
+        
+        if uploaded_file:
+            blob_name = generate_filename(uploaded_file.name)
+            receiptUrl = upload_image_to_azure(uploaded_file, blob_name)
+        elif image_url:
+            try:
+                # Download the image from the URL
+                response = requests.get(image_url, timeout=10)
+                if response.status_code != 200:
+                    return Response({"error": "Failed to download image from URL."}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Convert to Django file and upload to Blob Storage
+                image_content = ContentFile(response.content)
+                blob_name = generate_filename("receipt_from_url.jpg")  # Naming for URL images
+                receiptUrl = upload_image_to_azure(image_content, blob_name)
+
+            except requests.exceptions.RequestException as e:
+                return Response({"error": f"Error fetching image from URL: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)        
+        else:
+            return Response({"error": "No image file or image_url provided."}, status=status.HTTP_400_BAD_REQUEST)
         #endpoint = os.environ["DOCUMENTINTELLIGENCE_ENDPOINT"]
         endpoint = "https://testcloud-receipt.cognitiveservices.azure.com/"
         #key = os.environ["DOCUMENTINTELLIGENCE_API_KEY"]
         key = "55ZEzXXYdoiuCQykzrZFzTMUxdD4gaw3kqUx8o1U0heIaVoXxu2vJQQJ99BAACi5YpzXJ3w3AAALACOGLe2w"
 
         document_intelligence_client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
-        print(receiptUrl)
         if receiptUrl:
             # Process URL
             poller = document_intelligence_client.begin_analyze_document(
@@ -215,10 +232,7 @@ class ProcessReceiptView(APIView):
                                 item_details["total_price"] = {
                                 "value": str(item_total_price.get("valueCurrency").get("amount")),
                                 }
-                            #Later when have time, add each item to expense aswell
-                            transaction_date = transaction_date_field.get("valueDate") if transaction_date_field else None
-                            if isinstance(transaction_date, datetime):
-                                transaction_date = transaction_date.date()  # Convert to date   
+
                             Expense.objects.create(
                                 user=request.user,
                                 amount=item_total_price.get("valueCurrency").get("amount"),
@@ -228,16 +242,13 @@ class ProcessReceiptView(APIView):
                                 payment_method=None,
                             )
                             receipt_items.append(item_details)
-
-        transaction_date = transaction_date_field.get("valueDate") if transaction_date_field else None
-        if isinstance(transaction_date, datetime):
-            transaction_date = transaction_date.date()  # Convert to date              
+        
         receipt = Receipt.objects.create(user=request.user,
                                          image_url=receiptUrl if receiptUrl else None,
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                          total_amount = float(total.get("valueCurrency", {}).get("amount")) if total else 0.00,
                                          parsed_items=receipt_items,
-                                         transaction_date=transaction_date,
+                                         transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None,
                                          receipt_category=receipt_category.get('valueString') if receipt_category else None,
                                          )
         receipt.assign_to_budget()
@@ -279,7 +290,6 @@ def upload_image_to_azure(image_file, blob_name):
     )
 
     sas_url = f"{blob_client.url}?{sas_token}"
-    print("Generated SAS URL:", sas_url)  # Debugging
 
     return sas_url
     

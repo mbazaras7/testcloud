@@ -123,9 +123,9 @@ class Receipt(models.Model):
     budget = models.ForeignKey(Budget, on_delete=models.SET_NULL, null=True, blank=True, related_name='receipts')  # Link to budget
     merchant = models.CharField(max_length=100, verbose_name=_("Merchant"), blank=True, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("Total"), blank=True, null=True)
-    uploaded_at = models.DateField(default=now)
+    uploaded_at = models.DateTimeField(default=now)
     parsed_items = models.JSONField(blank=True, null=True, verbose_name=_("Parsed Items"))  # Store parsed item details (list of dictionaries)
-    transaction_date = models.DateField(blank=True, null=True, verbose_name=_("Transaction Date")) 
+    transaction_date = models.DateTimeField(blank=True, null=True, verbose_name=_("Transaction Date")) 
     receipt_category = models.CharField(max_length=100, verbose_name=_("Category"), blank=True, null=True)
     
     def __str__(self):

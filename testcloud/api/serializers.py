@@ -75,7 +75,8 @@ class ReceiptSerializer(serializers.ModelSerializer):
         return receipt
 '''
 class ReceiptSerializer(serializers.ModelSerializer):
-    uploaded_at = serializers.DateField(format="%d-%m-%Y", required=False)
+    transaction_date = serializers.DateTimeField(format="%d-%m-%Y", required=False)  # Ensure it's a DateField
+    uploaded_at = serializers.DateTimeField(format="%d-%m-%Y", required=False)
 
     class Meta:
         model = Receipt
