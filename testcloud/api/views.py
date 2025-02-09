@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Income, Expense, Budget, Receipt, User
+from .models import Income, Expense, Budget, Receipt, User, CategoryChoices
 from .serializers import (
     UserCreateSerializer,
     UserSerializer,
@@ -232,24 +232,28 @@ class ProcessReceiptView(APIView):
                                 item_details["total_price"] = {
                                 "value": str(item_total_price.get("valueCurrency").get("amount")),
                                 }
-
+                                category = receipt_category.get('valueString')
+                                category_choices = {c.value.lower(): c.value for c in CategoryChoices}
+                                assigned_category = category_choices.get(category.lower(), CategoryChoices.OTHER)
                             Expense.objects.create(
                                 user=request.user,
                                 amount=item_total_price.get("valueCurrency").get("amount"),
-                                category=receipt_category.get('valueString') if receipt_category else None,
+                                category=assigned_category,
                                 date=transaction_date_field.get("valueDate") if transaction_date_field else None,
                                 vendor=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                 payment_method=None,
                             )
                             receipt_items.append(item_details)
-        
+        category = receipt_category.get('valueString').split(".")[0]
+        category_choices = {c.value.lower(): c.value for c in CategoryChoices}
+        assigned_category = category_choices.get(category.lower(), CategoryChoices.OTHER)
         receipt = Receipt.objects.create(user=request.user,
                                          image_url=receiptUrl if receiptUrl else None,
                                          merchant=merchant_name.get('valueString') if merchant_name else "Unknown Merchant",
                                          total_amount = float(total.get("valueCurrency", {}).get("amount")) if total else 0.00,
                                          parsed_items=receipt_items,
                                          transaction_date=transaction_date_field.get("valueDate") if transaction_date_field else None,
-                                         receipt_category=receipt_category.get('valueString') if receipt_category else None,
+                                         receipt_category=assigned_category,
                                          )
         receipt.assign_to_budget()
         serializer = ReceiptSerializer(receipt)

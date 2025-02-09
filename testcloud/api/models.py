@@ -79,8 +79,21 @@ class Income(Transaction):
         verbose_name = _("Income")
         verbose_name_plural = _("Incomes")
 
+class CategoryChoices(models.TextChoices):
+    MEAL = "Meal", _("Meal")
+    SUPPLIES = "Supplies", _("Supplies")
+    HOTEL = "Hotel", _("Hotel")
+    FUEL_ENERGY = "Fuel & Energy", _("Fuel & Energy")
+    TRANSPORTATION = "Transportation", _("Transportation")
+    COMMUNICATION_SUBSCRIPTIONS = "Communication & Subscriptions", _("Communication & Subscriptions")
+    ENTERTAINMENT = "Entertainment", _("Entertainment")
+    TRAINING = "Training", _("Training")
+    HEALTHCARE = "Healthcare", _("Healthcare")
+    OTHER = "Other", _("Other")
+
 class Expense(Transaction):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="expenses")
+    category = models.CharField(max_length=50,choices=CategoryChoices.choices,default=CategoryChoices.OTHER,verbose_name=_("Category"),help_text=_("Select the category of the expense."),)
     vendor = models.CharField(max_length=100,blank=True,null=True,verbose_name=_("Vendor"),help_text=_("The vendor or merchant associated with the expense."))
     payment_method = models.CharField(max_length=50,blank=True,null=True,verbose_name=_("Payment Method"),help_text=_("Payment method used for the expense, e.g., credit card, cash."))
     class Meta:
@@ -126,7 +139,7 @@ class Receipt(models.Model):
     uploaded_at = models.DateTimeField(default=now)
     parsed_items = models.JSONField(blank=True, null=True, verbose_name=_("Parsed Items"))  # Store parsed item details (list of dictionaries)
     transaction_date = models.DateTimeField(blank=True, null=True, verbose_name=_("Transaction Date")) 
-    receipt_category = models.CharField(max_length=100, verbose_name=_("Category"), blank=True, null=True)
+    receipt_category = models.CharField(max_length=50,choices=CategoryChoices.choices,default=CategoryChoices.OTHER,verbose_name=_("Category"),help_text=_("Select the category of the receipt."),)
     
     def __str__(self):
         return f"Receipt from {self.merchant or 'Unknown Merchant'} uploaded on {self.uploaded_at}"
@@ -138,4 +151,8 @@ class Receipt(models.Model):
             self.budget = active_budget
             self.save()
             active_budget.update_spending()
-
+    
+    def determine_category(parsed_category):
+        """Assigns a category based on parsed data."""
+        category_map = {c.label.lower(): c.value for c in CategoryChoices}
+        return category_map.get(parsed_category.lower(), CategoryChoices.OTHER)
