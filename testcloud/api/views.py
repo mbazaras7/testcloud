@@ -478,8 +478,10 @@ class EmailPasswordLoginView(APIView):
         user = authenticate(request, email=email, password=password)
 
         if user:
-            login(request, user)  # Create session for the user
-            return Response({"message": "Login successful!"}, status=status.HTTP_200_OK)
+            return Response({
+                "message": "Login successful!",
+                "Authorization": f"Basic {base64.b64encode(f'{email}:{password}'.encode()).decode()}"
+            }, status=status.HTTP_200_OK)
 
         return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
