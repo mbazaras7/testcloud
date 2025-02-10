@@ -120,7 +120,6 @@ class LoginView(APIView):
 # Income ViewSet
 #class IncomeViewSet(UserScopedViewSet):
 class IncomeViewSet(viewsets.ModelViewSet):
-    authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     serializer_class = IncomeSerializer
     queryset = Income.objects.all()
@@ -136,7 +135,6 @@ class IncomeViewSet(viewsets.ModelViewSet):
 #class ExpenseViewSet(UserScopedViewSet):c
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Expense.objects.filter(user=self.request.user)    
@@ -151,7 +149,6 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 # Budget ViewSet
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
-    authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)    
@@ -171,7 +168,6 @@ def _format_price(price_dict):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
-    authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Receipt.objects.filter(user=self.request.user)
@@ -339,7 +335,6 @@ def compress_image(image_file):
     return img_io
         
 class ExportReceiptsXlsxView(APIView):
-    authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
@@ -438,7 +433,6 @@ class ExportReceiptsXlsxView(APIView):
  
 @method_decorator(csrf_exempt, name='dispatch')   
 class BudgetReportView(APIView):  
-    authentication_classes = [SessionAuthentication]  # No CSRF required  
     permission_classes = [IsAuthenticated]
 
     def get(self, request, budget_id):
@@ -472,7 +466,6 @@ class BudgetReportView(APIView):
 
 class EmailPasswordLoginView(APIView):
     """ Login using email and password, and store session """
-    authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -492,7 +485,6 @@ class EmailPasswordLoginView(APIView):
 
 class LogoutView(APIView):
     """ Logout the user and clear session """
-    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
