@@ -188,7 +188,7 @@ def generate_filename(filename):
     return f"{timestamp}.{extension}"  # Return unique filename
 
 class ProcessReceiptView(APIView):
-    authentication_classes = [SessionAuthentication]  # No CSRF required
+    #authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
         
