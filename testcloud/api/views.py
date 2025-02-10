@@ -119,6 +119,7 @@ class LoginView(APIView):
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 # Income ViewSet
 #class IncomeViewSet(UserScopedViewSet):
+@method_decorator(csrf_exempt, name='dispatch')
 class IncomeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = IncomeSerializer
@@ -133,6 +134,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
 
 # Expense ViewSet
 #class ExpenseViewSet(UserScopedViewSet):c
+@method_decorator(csrf_exempt, name='dispatch')
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     permission_classes = [IsAuthenticated]
@@ -147,6 +149,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 # Budget ViewSet
+@method_decorator(csrf_exempt, name='dispatch')
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
     permission_classes = [IsAuthenticated]
@@ -166,6 +169,7 @@ def _format_price(price_dict):
         return "N/A"
     return "".join([f"{p}" for p in price_dict.values()])
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
     permission_classes = [IsAuthenticated]
@@ -183,6 +187,7 @@ def generate_filename(filename):
     extension = filename.split('.')[-1]  # Extract file extension
     return f"{timestamp}.{extension}"  # Return unique filename
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ProcessReceiptView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
@@ -333,6 +338,7 @@ def compress_image(image_file):
 
     return img_io
         
+@method_decorator(csrf_exempt, name='dispatch')
 class ExportReceiptsXlsxView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -429,7 +435,8 @@ class ExportReceiptsXlsxView(APIView):
         wb.save(response)
 
         return response
-    
+ 
+@method_decorator(csrf_exempt, name='dispatch')   
 class BudgetReportView(APIView):    
     permission_classes = [IsAuthenticated]
 
@@ -482,7 +489,7 @@ class EmailPasswordLoginView(APIView):
 
         return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
     """ Logout the user and clear session """
     authentication_classes = [SessionAuthentication]

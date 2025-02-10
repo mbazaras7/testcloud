@@ -55,6 +55,10 @@ MIDDLEWARE = [
 ]
 
 # Disable CSRF protection globally (Not recommended for production)
+CSRF_TRUSTED_ORIGINS= [
+    "https://testcloud-backend.azurewebsites.net",
+    "http://localhost:8000",
+]
 CSRF_COOKIE_SECURE = False  # Only if using HTTPS
 CSRF_COOKIE_HTTPONLY = False
 
