@@ -4,7 +4,7 @@ from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentR
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication
 from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
@@ -121,7 +121,6 @@ class LoginView(APIView):
 #class IncomeViewSet(UserScopedViewSet):
 @method_decorator(csrf_exempt, name='dispatch')
 class IncomeViewSet(viewsets.ModelViewSet):
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     serializer_class = IncomeSerializer
     queryset = Income.objects.all()
@@ -138,7 +137,6 @@ class IncomeViewSet(viewsets.ModelViewSet):
 @method_decorator(csrf_exempt, name='dispatch')
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Expense.objects.filter(user=self.request.user)    
@@ -154,7 +152,6 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 @method_decorator(csrf_exempt, name='dispatch')
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)    
@@ -175,7 +172,6 @@ def _format_price(price_dict):
 @method_decorator(csrf_exempt, name='dispatch')
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Receipt.objects.filter(user=self.request.user)
@@ -194,7 +190,6 @@ def generate_filename(filename):
 @method_decorator(csrf_exempt, name='dispatch')
 class ProcessReceiptView(APIView):
     permission_classes = [IsAuthenticated]
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     def post(self, request, *args, **kwargs):
         
         image_url = request.data.get('image_url')
@@ -345,9 +340,7 @@ def compress_image(image_file):
         
 @method_decorator(csrf_exempt, name='dispatch')
 class ExportReceiptsXlsxView(APIView):
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
-    
 
     def get(self, request, *args, **kwargs):
         """ Generate an Excel (.xlsx) file with formatted receipts, either all or by budget """
@@ -445,7 +438,6 @@ class ExportReceiptsXlsxView(APIView):
  
 @method_decorator(csrf_exempt, name='dispatch')   
 class BudgetReportView(APIView):    
-    authentication_classes = [BasicAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
 
     def get(self, request, budget_id):
