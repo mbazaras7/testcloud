@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
 from django.core.files.storage import default_storage
+import base64
 import requests
 from django.core.files.base import ContentFile
 from django.shortcuts import render
