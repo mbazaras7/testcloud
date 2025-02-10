@@ -94,13 +94,3 @@ class BudgetSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
         read_only_fields = ['current_spending']
         extra_kwargs = {'user': {'read_only': True}}
-
-
-# Notification Serializer
-'''
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = ['id', 'user', 'type', 'message', 'sent_at', 'is_read']
-        read_only_fields = ['user', 'sent_at']
-'''

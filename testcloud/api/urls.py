@@ -23,4 +23,7 @@ urlpatterns = [
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/export/receipts/', ExportReceiptsXlsxView.as_view(), name='export-receipts'),
     path("api/export/budget/<int:budget_id>/", ExportReceiptsXlsxView.as_view(), name="export_budget_receipts"),
+    path("api/budget-report/<int:budget_id>/", BudgetReportView.as_view(), name="budget-report"),
+    path('login/', EmailPasswordLoginView.as_view(), name='login'),
+    path('logout/', LogoutView.as_view(), name='logout'),
 ]

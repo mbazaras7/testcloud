@@ -4,6 +4,7 @@ from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentR
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
+from rest_framework.authentication import SessionAuthentication
 from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
@@ -33,7 +34,7 @@ from .serializers import (
 )
 from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
-from django.contrib.auth import get_user_model, authenticate    
+from django.contrib.auth import get_user_model, authenticate, login, logout
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -91,6 +92,31 @@ class UserScopedViewSet(viewsets.ModelViewSet):
         """
         serializer.save(user=self.request.user)
 
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        # Get email and password from request data
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        # Authenticate the user
+        user = authenticate(email=email, password=password)
+
+        if user:
+            # Generate JWT token
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'full_name': user.full_name,
+                }
+            }, status=status.HTTP_200_OK)
+
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 # Income ViewSet
 #class IncomeViewSet(UserScopedViewSet):
 class IncomeViewSet(viewsets.ModelViewSet):
@@ -109,8 +135,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
 #class ExpenseViewSet(UserScopedViewSet):c
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny] # delete later in development 
     def get_queryset(self):
         return Expense.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
@@ -124,8 +149,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 # Budget ViewSet
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny] # delete later in development 
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
@@ -144,8 +168,7 @@ def _format_price(price_dict):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny] # delete later in development 
     def get_queryset(self):
         return Receipt.objects.filter(user=self.request.user)
     filter_backends = (filters.DjangoFilterBackend,)
@@ -161,9 +184,7 @@ def generate_filename(filename):
     return f"{timestamp}.{extension}"  # Return unique filename
 
 class ProcessReceiptView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    
+    permission_classes = [AllowAny] # delete later in development 
     def post(self, request, *args, **kwargs):
         
         image_url = request.data.get('image_url')
@@ -297,31 +318,6 @@ def upload_image_to_azure(image_file, blob_name):
 
     return sas_url
     
-class LoginView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request, *args, **kwargs):
-        # Get email and password from request data
-        email = request.data.get('email')
-        password = request.data.get('password')
-
-        # Authenticate the user
-        user = authenticate(email=email, password=password)
-
-        if user:
-            # Generate JWT token
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'full_name': user.full_name,
-                }
-            }, status=status.HTTP_200_OK)
-
-        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
     
 def compress_image(image_file):
     """Compress the image to reduce file size before uploading."""
@@ -338,8 +334,7 @@ def compress_image(image_file):
     return img_io
         
 class ExportReceiptsXlsxView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny] # delete later in development 
 
     def get(self, request, *args, **kwargs):
         """ Generate an Excel (.xlsx) file with formatted receipts, either all or by budget """
@@ -434,3 +429,65 @@ class ExportReceiptsXlsxView(APIView):
         wb.save(response)
 
         return response
+    
+class BudgetReportView(APIView):    
+    permission_classes = [AllowAny] # delete later in development 
+
+    def get(self, request, budget_id):
+        budget = get_object_or_404(Budget, id=budget_id, user=request.user)
+        receipts = Receipt.objects.filter(budget=budget)
+        
+        # Calculate spending summary
+        total_spent = sum(receipt.total_amount or 0 for receipt in receipts)
+        category_spending = {}
+        total_items = 0
+        category_items = {}
+        
+        for receipt in receipts:
+            category = receipt.receipt_category
+            category_spending[category] = category_spending.get(category, 0) + (receipt.total_amount or 0)
+            
+            item_count = len(receipt.parsed_items) if receipt.parsed_items else 1
+            total_items += item_count
+            category_items[category] = category_items.get(category, 0) + item_count
+        
+        response_data = {
+            "budget": BudgetSerializer(budget).data,
+            "total_spent": total_spent,
+            "category_spending": category_spending,
+            "total_items": total_items,
+            "category_items": category_items,
+            "receipts": ReceiptSerializer(receipts, many=True).data,
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class EmailPasswordLoginView(APIView):
+    """ Login using email and password, and store session """
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        if not email or not password:
+            return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(request, email=email, password=password)
+
+        if user:
+            login(request, user)  # Create session for the user
+            return Response({"message": "Login successful!"}, status=status.HTTP_200_OK)
+
+        return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class LogoutView(APIView):
+    """ Logout the user and clear session """
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        logout(request)
+        return Response({"message": "Logged out successfully!"}, status=status.HTTP_200_OK)
