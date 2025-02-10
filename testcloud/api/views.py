@@ -120,7 +120,7 @@ class LoginView(APIView):
 # Income ViewSet
 #class IncomeViewSet(UserScopedViewSet):
 class IncomeViewSet(viewsets.ModelViewSet):
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
     serializer_class = IncomeSerializer
     queryset = Income.objects.all()
     filter_backends = (filters.DjangoFilterBackend,)
@@ -135,7 +135,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
 #class ExpenseViewSet(UserScopedViewSet):c
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Expense.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
@@ -149,7 +149,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 # Budget ViewSet
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
@@ -168,7 +168,7 @@ def _format_price(price_dict):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Receipt.objects.filter(user=self.request.user)
     filter_backends = (filters.DjangoFilterBackend,)
@@ -184,7 +184,7 @@ def generate_filename(filename):
     return f"{timestamp}.{extension}"  # Return unique filename
 
 class ProcessReceiptView(APIView):
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
         
         image_url = request.data.get('image_url')
@@ -334,7 +334,7 @@ def compress_image(image_file):
     return img_io
         
 class ExportReceiptsXlsxView(APIView):
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """ Generate an Excel (.xlsx) file with formatted receipts, either all or by budget """
@@ -431,7 +431,7 @@ class ExportReceiptsXlsxView(APIView):
         return response
     
 class BudgetReportView(APIView):    
-    permission_classes = [AllowAny] # delete later in development 
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, budget_id):
         budget = get_object_or_404(Budget, id=budget_id, user=request.user)
