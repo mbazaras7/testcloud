@@ -119,7 +119,6 @@ class LoginView(APIView):
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 # Income ViewSet
 #class IncomeViewSet(UserScopedViewSet):
-@method_decorator(csrf_exempt, name='dispatch')
 class IncomeViewSet(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
@@ -135,7 +134,6 @@ class IncomeViewSet(viewsets.ModelViewSet):
 
 # Expense ViewSet
 #class ExpenseViewSet(UserScopedViewSet):c
-@method_decorator(csrf_exempt, name='dispatch')
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     authentication_classes = [SessionAuthentication]  # No CSRF required
@@ -151,7 +149,6 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 # Budget ViewSet
-@method_decorator(csrf_exempt, name='dispatch')
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
     authentication_classes = [SessionAuthentication]  # No CSRF required
@@ -172,7 +169,6 @@ def _format_price(price_dict):
         return "N/A"
     return "".join([f"{p}" for p in price_dict.values()])
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptSerializer
     authentication_classes = [SessionAuthentication]  # No CSRF required
@@ -191,7 +187,6 @@ def generate_filename(filename):
     extension = filename.split('.')[-1]  # Extract file extension
     return f"{timestamp}.{extension}"  # Return unique filename
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProcessReceiptView(APIView):
     authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
@@ -343,7 +338,6 @@ def compress_image(image_file):
 
     return img_io
         
-@method_decorator(csrf_exempt, name='dispatch')
 class ExportReceiptsXlsxView(APIView):
     authentication_classes = [SessionAuthentication]  # No CSRF required
     permission_classes = [IsAuthenticated]
@@ -496,7 +490,6 @@ class EmailPasswordLoginView(APIView):
 
         return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
     """ Logout the user and clear session """
     authentication_classes = [SessionAuthentication]
@@ -505,3 +498,11 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response({"message": "Logged out successfully!"}, status=status.HTTP_200_OK)
+    
+class CSRFTokenView(APIView):
+    """ API endpoint to provide the CSRF token """
+    permission_classes = [AllowAny]  # Allow any user to access this endpoint
+
+    def get(self, request):
+        csrf_token = get_token(request)  # Retrieve the CSRF token
+        return JsonResponse({"csrfToken": csrf_token})

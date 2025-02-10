@@ -26,4 +26,5 @@ urlpatterns = [
     path("api/budget-report/<int:budget_id>/", BudgetReportView.as_view(), name="budget-report"),
     path('login/', EmailPasswordLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path("api/csrf/", CSRFTokenView.as_view(), name="csrf-token"),  # ✅ CSRF Token Endpoint
 ]
