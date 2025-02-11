@@ -113,12 +113,7 @@ class Budget(models.Model):
     def update_spending(self):
         """ Update current spending based on linked receipts' total amounts. """
         total_spent = (
-            Receipt.objects.filter(
-                Q(transaction_date__range=[self.start_date, self.end_date]) |  # Use transaction_date if available
-                Q(transaction_date__isnull=True, uploaded_at__range=[self.start_date, self.end_date]),  # Otherwise, use uploaded_at
-                user=self.user,
-            )
-            .exclude(total_amount=None)
+            self.receipts.exclude(total_amount=None)
             .annotate(total_as_float=Cast("total_amount", FloatField()))
             .aggregate(total=Sum("total_as_float"))["total"] or 0
         )
@@ -133,7 +128,7 @@ class Budget(models.Model):
 class Receipt(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="receipts")
     image_url = models.URLField(max_length=500, verbose_name=_("Image URL"), blank=True, null=True)  # Store uploaded receipt image URLs
-    budget = models.ForeignKey(Budget, on_delete=models.SET_NULL, null=True, blank=True, related_name='receipts')  # Link to budget
+    budget = models.ManyToManyField(Budget, related_name=_("receipts")) # Link to budget
     merchant = models.CharField(max_length=100, verbose_name=_("Merchant"), blank=True, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("Total"), blank=True, null=True)
     uploaded_at = models.DateTimeField(default=now)
@@ -146,11 +141,18 @@ class Receipt(models.Model):
     
     def assign_to_budget(self):
         """ Automatically assigns the receipt to the correct budget if applicable. """
-        active_budget = Budget.objects.filter(user=self.user,start_date__lte=self.transaction_date if self.transaction_date else self.uploaded_at,end_date__gte=self.transaction_date if self.transaction_date else self.uploaded_at).first()
-        if active_budget:
-            self.budget = active_budget
+        matching_budgets = Budget.objects.filter(
+            user=self.user,
+            start_date__lte=self.transaction_date if self.transaction_date else self.uploaded_at,
+            end_date__gte=self.transaction_date if self.transaction_date else self.uploaded_at,
+        )
+        if matching_budgets.exists():
+            self.budget.set(matching_budgets)  # ✅ Assign multiple budgets
             self.save()
-            active_budget.update_spending()
+
+        # ✅ Update spending for all affected budgets
+            for budget in matching_budgets:
+                budget.update_spending()
     
     def determine_category(parsed_category):
         """Assigns a category based on parsed data."""
