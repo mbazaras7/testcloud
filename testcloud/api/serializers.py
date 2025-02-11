@@ -91,6 +91,6 @@ class BudgetSerializer(serializers.ModelSerializer):
     end_date = serializers.DateField(format="%d-%m-%Y")
     class Meta:
         model = Budget
-        fields = ['id', 'user', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
+        fields = ['id', 'user', 'name', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
         read_only_fields = ['current_spending']
         extra_kwargs = {'user': {'read_only': True}}
