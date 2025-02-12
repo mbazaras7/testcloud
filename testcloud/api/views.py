@@ -432,7 +432,6 @@ class ExportReceiptsXlsxView(APIView):
 
         return response
  
-@method_decorator(csrf_exempt, name='dispatch')   
 class BudgetReportView(APIView):  
     permission_classes = [IsAuthenticated]
 
