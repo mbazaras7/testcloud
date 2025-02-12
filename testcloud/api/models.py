@@ -4,7 +4,11 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Sum, FloatField, Q
 from django.db.models.functions import Cast
+from multiselectfield import MultiSelectField
 from django.utils.timezone import now
+from django.contrib.postgres.fields import ArrayField
+from django.db.models import JSONField
+
 
 
 # Create your models here.
@@ -103,7 +107,8 @@ class Expense(Transaction):
 class Budget(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
     name = models.CharField(max_length=255, null=True, blank=True, default="Budget")
-    category = models.CharField(max_length=255, null=True, blank=True)  # Budget category
+    category = models.CharField(max_length=50,choices=CategoryChoices.choices,default=CategoryChoices.OTHER,verbose_name=_("Category"),help_text=_("Select the category of the receipt."),)
+    filter_categories = MultiSelectField(choices=CategoryChoices.choices, blank=True)
     limit_amount = models.DecimalField(max_digits=10, decimal_places=2)  # Budget limit
     current_spending = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Total spent
     start_date = models.DateField()  # Start of budget period
@@ -112,11 +117,19 @@ class Budget(models.Model):
 
     def update_spending(self):
         """ Update current spending based on linked receipts' total amounts. """
-        total_spent = (
-            self.receipts.exclude(total_amount=None)
-            .annotate(total_as_float=Cast("total_amount", FloatField()))
-            .aggregate(total=Sum("total_as_float"))["total"] or 0
-        )
+        if not self.filter_categories:
+            total_spent = (
+                self.receipts.exclude(total_amount=None)
+                .annotate(total_as_float=Cast("total_amount", FloatField()))
+                .aggregate(total=Sum("total_as_float"))["total"] or 0
+            )
+        else:
+            total_spent = (
+                self.receipts.filter(receipt_category__in=self.filter_categories)  # ✅ Only count allowed categories
+                .exclude(total_amount=None)
+                .annotate(total_as_float=Cast("total_amount", FloatField()))
+                .aggregate(total=Sum("total_as_float"))["total"] or 0
+            )
         self.current_spending = total_spent
         self.save()
 
@@ -146,6 +159,13 @@ class Receipt(models.Model):
             start_date__lte=self.transaction_date if self.transaction_date else self.uploaded_at,
             end_date__gte=self.transaction_date if self.transaction_date else self.uploaded_at,
         )
+        
+        matching_budgets = matching_budgets.filter(
+            models.Q(filter_categories__isnull=True) |  # No filtering if filter_categories is empty
+            models.Q(filter_categories="") |  # No filtering if empty string
+            models.Q(filter_categories__contains=self.receipt_category)  # Match receipt category
+        )
+        
         if matching_budgets.exists():
             self.budget.set(matching_budgets)  # ✅ Assign multiple budgets
             self.save()

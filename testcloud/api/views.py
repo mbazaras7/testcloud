@@ -154,7 +154,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)    
     filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ['id', 'start_date', 'end_date']
+    filterset_fields = ['id', 'start_date', 'end_date', 'filter_categories']
 
     def perform_create(self, serializer):
         """

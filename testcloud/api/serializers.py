@@ -89,8 +89,11 @@ class BudgetSerializer(serializers.ModelSerializer):
     receipts = ReceiptSerializer(many=True, read_only=True)  # Show receipts under budget
     start_date = serializers.DateField(format="%d-%m-%Y")
     end_date = serializers.DateField(format="%d-%m-%Y")
+ 
+    filter_categories = serializers.MultipleChoiceField(choices=CategoryChoices.choices)
+
     class Meta:
         model = Budget
-        fields = ['id', 'user', 'name', 'category', 'limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
+        fields = ['id', 'user', 'name', 'category', 'filter_categories','limit_amount', 'current_spending', 'start_date', 'end_date', 'receipts']
         read_only_fields = ['current_spending']
         extra_kwargs = {'user': {'read_only': True}}

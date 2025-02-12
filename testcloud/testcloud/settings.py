@@ -92,12 +92,25 @@ WSGI_APPLICATION = 'testcloud.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+'''
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": 'testcloud-backend-database',
+        "HOST": 'testcloud-backend-server.postgres.database.azure.com',
+        "USER": 'uhrwlstcia',
+        "PASSWORD": 'A$7EEdjxxaBsRM2u',
+    }
+}
+'''
 
 
 # Password validation
